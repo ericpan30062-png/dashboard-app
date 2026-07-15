@@ -1,0 +1,50 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Mirrors the signed-in user from Clerk (see src/lib/clerk-sync.ts).
+// Clerk is the source of truth for auth; this row lets other tables
+// (and app data) reference a user via a normal foreign key.
+model User {
+  id        String   @id @default(cuid())
+  clerkId   String   @unique
+  email     String   @unique
+  name      String?
+  imageUrl  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  integrations Integration[]
+}
+
+enum IntegrationProvider {
+  GOOGLE_CALENDAR
+  CANVAS
+  NOTION
+}
+
+// Tracks per-user connection status/credentials for the third-party
+// integrations wired up in the sidebar. Tokens would be populated once
+// each provider's OAuth/API-key flow is implemented.
+model Integration {
+  id          String              @id @default(cuid())
+  userId      String
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider    IntegrationProvider
+  accessToken String?
+  refreshToken String?
+  metadata    Json?
+  connectedAt DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@unique([userId, provider])
+}
