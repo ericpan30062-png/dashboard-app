@@ -23,6 +23,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   integrations Integration[]
+  assignments  Assignment[]
 }
 
 enum IntegrationProvider {
@@ -47,4 +48,29 @@ model Integration {
   updatedAt   DateTime            @updatedAt
 
   @@unique([userId, provider])
+}
+
+enum AssignmentType {
+  EXAM
+  PAPER
+  HOMEWORK
+  PROJECT
+}
+
+// Extracted from an uploaded syllabus PDF (see src/app/api/syllabus/*) and
+// reviewed/edited by the user before being confirmed and saved here.
+model Assignment {
+  id        String         @id @default(cuid())
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  // Free text rather than DateTime: syllabus due dates are often irregular
+  // ("Week 5 Friday", "TBD") and the review step lets the user fix these.
+  dueDate   String?
+  weight    Float?
+  type      AssignmentType
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@index([userId])
 }
