@@ -1,19 +1,36 @@
-import { Calendar } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
-import { PlaceholderPage } from "@/components/dashboard/placeholder-page";
+import { getOrCreateUser } from "@/lib/clerk-sync";
+import { GoogleCalendarConnection } from "@/components/dashboard/google-calendar-connection";
 
-export default async function CalendarPage() {
+export default async function CalendarPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   await auth.protect();
+  const user = await getOrCreateUser();
+  const integration = user?.integrations.find(
+    (i) => i.provider === "GOOGLE_CALENDAR",
+  );
+  const { status } = await searchParams;
+
   return (
-    <PlaceholderPage
-      icon={Calendar}
-      title="Google Calendar"
-      description="Wire up the Google Calendar API here to show upcoming events and let users manage their schedule without leaving the dashboard."
-      envVars={[
-        "GOOGLE_CALENDAR_CLIENT_ID",
-        "GOOGLE_CALENDAR_CLIENT_SECRET",
-        "GOOGLE_CALENDAR_REDIRECT_URI",
-      ]}
-    />
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+          Google Calendar
+        </h2>
+        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          Connect your calendar so backward planning (click any assignment
+          to open &ldquo;Plan my time&rdquo;) can see your existing
+          commitments and add study sessions automatically.
+        </p>
+      </div>
+
+      <GoogleCalendarConnection
+        connected={Boolean(integration?.connectedAt)}
+        status={status}
+      />
+    </div>
   );
 }

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import type { Assignment } from "@/generated/prisma/client";
 import type { ScoredAssignment } from "@/lib/grade-impact";
+import { StudyPlanModal } from "@/components/dashboard/study-plan-modal";
 
 type SortMode = "impact" | "dueDate";
 
@@ -30,6 +31,7 @@ export function PriorityView({
   summary: string | null;
 }) {
   const [sortMode, setSortMode] = useState<SortMode>("impact");
+  const [selected, setSelected] = useState<Assignment | null>(null);
 
   const items = sortMode === "impact" ? byImpact : byDueDate;
   const maxImpact = useMemo(
@@ -117,7 +119,8 @@ export function PriorityView({
             return (
               <li
                 key={item.assignment.id}
-                className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
+                onClick={() => setSelected(item.assignment)}
+                className="cursor-pointer rounded-xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
               >
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div>
@@ -162,7 +165,8 @@ export function PriorityView({
             {undated.map((assignment) => (
               <li
                 key={assignment.id}
-                className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950"
+                onClick={() => setSelected(assignment)}
+                className="flex cursor-pointer items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 text-sm transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
               >
                 <div>
                   <p className="font-medium text-zinc-950 dark:text-zinc-50">
@@ -181,6 +185,10 @@ export function PriorityView({
             ))}
           </ul>
         </div>
+      )}
+
+      {selected && (
+        <StudyPlanModal assignment={selected} onClose={() => setSelected(null)} />
       )}
     </div>
   );

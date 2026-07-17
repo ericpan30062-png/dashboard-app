@@ -1,5 +1,6 @@
-A Next.js dashboard scaffold with Postgres/Prisma, Clerk authentication, and
-placeholders for Google Calendar, Canvas LMS, Anthropic, and Notion.
+A Next.js dashboard scaffold with Postgres/Prisma, Clerk authentication,
+Google Calendar integration, Claude-powered syllabus parsing and backward
+study planning, and placeholders for Canvas LMS and Notion.
 
 ## Stack
 
@@ -18,6 +19,20 @@ placeholders for Google Calendar, Canvas LMS, Anthropic, and Notion.
   → user reviews/edits in a table → confirmed rows are saved to the
   `assignments` Postgres table. See `src/app/api/syllabus/*` and
   `src/components/dashboard/syllabus-uploader.tsx`.
+- **Grade impact priorities** (`/dashboard/priorities`): ranks upcoming
+  assignments by `weight x urgency multiplier` and asks Claude for a
+  2-sentence "focus this week" summary. See `src/lib/grade-impact.ts` and
+  `src/lib/priority-summary.ts`.
+- **Google Calendar** (`/dashboard/calendar`): OAuth connect flow
+  (`google-auth-library`, tokens stored on the `Integration` table) so the
+  app can read your events and create new ones. See `src/lib/google-calendar.ts`
+  and `src/app/api/integrations/google-calendar/*`.
+- **Backward planning**: click any assignment to open "Plan my time" — enter
+  a time estimate, and it fetches your free time from Google Calendar between
+  now and the due date, asks Claude for a day-by-day study plan, and (after
+  you review and confirm) writes each session to your calendar as an event.
+  See `src/lib/study-plan.ts`, `src/app/api/planning/*`, and
+  `src/components/dashboard/study-plan-modal.tsx`.
 
 ## Getting started
 
@@ -37,13 +52,27 @@ placeholders for Google Calendar, Canvas LMS, Anthropic, and Notion.
      and copy `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY`. If you
      leave these blank, Clerk falls back to a "keyless" dev mode and prints a
      claim link in the terminal the first time you run `next dev`.
-   - `GOOGLE_CALENDAR_*`, `CANVAS_*`, `NOTION_*` — see `.env.example` for where
-     to get each one. None of these three integrations are wired up yet; the
-     sidebar pages under `/dashboard` document which env vars each one needs.
-   - `ANTHROPIC_API_KEY` — required for the syllabus upload feature (see
-     below); get one at [console.anthropic.com](https://console.anthropic.com).
+   - `CANVAS_*`, `NOTION_*` — see `.env.example` for where to get each one.
+     Neither integration is wired up yet; the sidebar pages under
+     `/dashboard` document which env vars each one needs.
+   - `ANTHROPIC_API_KEY` — required for the syllabus upload and backward
+     planning features; get one at
+     [console.anthropic.com](https://console.anthropic.com).
    - `PDF_EXTRACTOR_URL` — where the syllabus upload feature's PDF-extraction
      microservice is running (defaults to `http://localhost:8000`); see step 5.
+   - `GOOGLE_CALENDAR_CLIENT_ID` / `GOOGLE_CALENDAR_CLIENT_SECRET` /
+     `GOOGLE_CALENDAR_REDIRECT_URI` — required for the Calendar page and
+     backward planning. In the
+     [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
+     1. Create a project (or use an existing one) and enable the
+        **Google Calendar API**.
+     2. Configure the OAuth consent screen (External is fine for testing;
+        add your Google account as a test user while the app is unpublished).
+     3. Create an **OAuth client ID** of type "Web application".
+     4. Add `http://localhost:3000/api/integrations/google-calendar/callback`
+        as an authorized redirect URI (must exactly match
+        `GOOGLE_CALENDAR_REDIRECT_URI`).
+     5. Copy the client ID and secret into `.env`.
 
 3. **Set up the database**
 
@@ -96,18 +125,32 @@ src/
     dashboard/
       layout.tsx             sidebar + topbar shell
       page.tsx                overview
-      calendar/ courses/ notes/ assistant/ settings/
+      courses/ notes/ assistant/ settings/
+      calendar/               Google Calendar connect/disconnect status
+      priorities/             grade impact priority view (toggle: impact/due date)
       syllabus/               upload + review/edit + saved assignments
-    api/syllabus/
-      extract/route.ts        PDF -> microservice -> Claude -> unsaved assignments JSON
-      assignments/route.ts    GET/POST saved assignments (Prisma, linked to the user)
+    api/
+      syllabus/
+        extract/route.ts      PDF -> microservice -> Claude -> unsaved assignments JSON
+        assignments/route.ts  GET/POST saved assignments (Prisma, linked to the user)
+      integrations/google-calendar/
+        connect/, callback/   OAuth flow (state cookie for CSRF, stores tokens on Integration)
+        disconnect/route.ts   deletes the stored Integration row
+      planning/
+        generate/route.ts     assignment + hours estimate -> free/busy from Calendar -> Claude plan (review only)
+        commit/route.ts       confirmed sessions -> creates Google Calendar events
   components/dashboard/       Sidebar, Topbar, MobileNav, nav-items config
-                               syllabus-uploader.tsx, saved-assignments.tsx
+                               syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
+                               google-calendar-connection.tsx, study-plan-modal.tsx
   lib/
     prisma.ts                 Prisma client singleton (driver adapter)
     clerk-sync.ts             upserts the Clerk user into the local User table
     anthropic.ts               Anthropic SDK client singleton
     syllabus-schema.ts         shared Zod schema (Claude structured output + API validation)
+    grade-impact.ts            due-date parsing + impact-score math (pure, unit-tested)
+    priority-summary.ts        Claude call for the priorities "focus this week" summary
+    google-calendar.ts          OAuth2Client, Calendar REST calls, free-block math (pure)
+    study-plan.ts               Claude call for the study plan + deterministic time-slot assignment
   proxy.ts                    Next.js 16's Middleware equivalent (session refresh only)
 prisma/
   schema.prisma               User, Integration, and Assignment models
