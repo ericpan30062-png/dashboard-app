@@ -47,12 +47,23 @@ placeholders for Google Calendar, Canvas LMS, Anthropic, and Notion.
 
 3. **Set up the database**
 
+   This machine has a local Postgres 17 server (installed via Postgres.app's
+   portable binaries, no Homebrew/system install needed) running as the
+   current user, data directory at `~/.local/share/postgres-data`, database
+   `dashboard_app`. `DATABASE_URL` in `.env` already points at it.
+
    ```bash
+   # Start/stop the local Postgres server:
+   pg_ctl -D ~/.local/share/postgres-data -l ~/.local/share/postgres-data/server.log start
+   pg_ctl -D ~/.local/share/postgres-data stop
+
+   # Apply the schema:
    npm run db:migrate   # creates prisma/migrations and applies them
    ```
 
    This also runs `prisma generate` (via the `postinstall` script) to produce
-   the typed client in `src/generated/prisma` (git-ignored).
+   the typed client in `src/generated/prisma` (git-ignored). If you'd rather
+   point at a different Postgres instance, just change `DATABASE_URL`.
 
 4. **Run the dev server**
 
