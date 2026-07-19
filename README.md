@@ -33,6 +33,14 @@ study planning, and placeholders for Canvas LMS and Notion.
   you review and confirm) writes each session to your calendar as an event.
   See `src/lib/study-plan.ts`, `src/app/api/planning/*`, and
   `src/components/dashboard/study-plan-modal.tsx`.
+- **Crunch predictor** (`/dashboard/crunch`): a 30-day heat map of how loaded
+  each day looks — combining grade weight of assignments due within 3 days,
+  calendar event count, and estimated study hours into one score per day —
+  plus Claude picks out the top 2-3 "danger windows" and what to start early.
+  Study-hour estimates are a heuristic by assignment type (not a stored
+  per-assignment value — see the code comment in `src/lib/crunch-predictor.ts`
+  for why). See also `src/lib/crunch-summary.ts` and
+  `src/components/dashboard/crunch-heatmap.tsx`.
 
 ## Getting started
 
@@ -128,6 +136,7 @@ src/
       courses/ notes/ assistant/ settings/
       calendar/               Google Calendar connect/disconnect status
       priorities/             grade impact priority view (toggle: impact/due date)
+      crunch/                 30-day load heat map + Claude danger-window analysis
       syllabus/               upload + review/edit + saved assignments
     api/
       syllabus/
@@ -141,7 +150,7 @@ src/
         commit/route.ts       confirmed sessions -> creates Google Calendar events
   components/dashboard/       Sidebar, Topbar, MobileNav, nav-items config
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
-                               google-calendar-connection.tsx, study-plan-modal.tsx
+                               google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
   lib/
     prisma.ts                 Prisma client singleton (driver adapter)
     clerk-sync.ts             upserts the Clerk user into the local User table
@@ -151,6 +160,8 @@ src/
     priority-summary.ts        Claude call for the priorities "focus this week" summary
     google-calendar.ts          OAuth2Client, Calendar REST calls, free-block math (pure)
     study-plan.ts               Claude call for the study plan + deterministic time-slot assignment
+    crunch-predictor.ts         30-day load-score math + heat map color scale (pure, unit-tested)
+    crunch-summary.ts           Claude call for the danger-window analysis
   proxy.ts                    Next.js 16's Middleware equivalent (session refresh only)
 prisma/
   schema.prisma               User, Integration, and Assignment models
