@@ -41,6 +41,16 @@ study planning, and placeholders for Canvas LMS and Notion.
   per-assignment value — see the code comment in `src/lib/crunch-predictor.ts`
   for why). See also `src/lib/crunch-summary.ts` and
   `src/components/dashboard/crunch-heatmap.tsx`.
+- **"I'm overwhelmed" button** (dashboard Overview page): one click sends
+  your incomplete assignments, today's remaining free time, and any exam
+  study sessions already on the calendar to Claude, which picks the single
+  most important thing to do for the next ~90 minutes (a specific task, not
+  a vague category) plus two sentences of honest encouragement. Shown as a
+  full-screen takeover that hides the rest of the dashboard until you're
+  ready to go back. "Incomplete" means "upcoming" (assignments don't have a
+  completed flag yet). See `src/lib/overwhelm-relief.ts`,
+  `src/app/api/overwhelmed/relief/route.ts`, and
+  `src/components/dashboard/overwhelmed-button.tsx`.
 
 ## Getting started
 
@@ -148,9 +158,12 @@ src/
       planning/
         generate/route.ts     assignment + hours estimate -> free/busy from Calendar -> Claude plan (review only)
         commit/route.ts       confirmed sessions -> creates Google Calendar events
+      overwhelmed/
+        relief/route.ts       assignments + today's free time + exam countdowns -> Claude -> single focus task
   components/dashboard/       Sidebar, Topbar, MobileNav, nav-items config
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
+                               overwhelmed-button.tsx
   lib/
     prisma.ts                 Prisma client singleton (driver adapter)
     clerk-sync.ts             upserts the Clerk user into the local User table
@@ -162,6 +175,7 @@ src/
     study-plan.ts               Claude call for the study plan + deterministic time-slot assignment
     crunch-predictor.ts         30-day load-score math + heat map color scale (pure, unit-tested)
     crunch-summary.ts           Claude call for the danger-window analysis
+    overwhelm-relief.ts         Claude call for the "I'm overwhelmed" single-focus-task plan
   proxy.ts                    Next.js 16's Middleware equivalent (session refresh only)
 prisma/
   schema.prisma               User, Integration, and Assignment models

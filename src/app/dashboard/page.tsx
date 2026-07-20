@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Calendar, GraduationCap, NotebookText, Sparkles } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getOrCreateUser } from "@/lib/clerk-sync";
+import { OverwhelmedButton } from "@/components/dashboard/overwhelmed-button";
 
 const cards = [
   {
@@ -48,6 +49,8 @@ export default async function DashboardPage() {
           Here&apos;s what&apos;s connected to your dashboard.
         </p>
       </div>
+
+      <OverwhelmedButton />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => {

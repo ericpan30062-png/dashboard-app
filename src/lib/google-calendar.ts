@@ -78,21 +78,23 @@ export async function getAuthenticatedClient(
 }
 
 export type CalendarBusyInterval = { start: Date; end: Date };
+export type CalendarEvent = { start: Date; end: Date; summary: string; transparent: boolean };
 
 type GoogleCalendarEvent = {
   start?: { dateTime?: string; date?: string };
   end?: { dateTime?: string; date?: string };
   transparency?: string;
+  summary?: string;
 };
 
-// Lists busy time between `timeMin` and `timeMax` on the user's primary
-// calendar. All-day events (no `dateTime`, only `date`) are treated as
-// busy for the entire day — we can't know what portion of it is free.
-export async function listBusyIntervals(
+// Shared fetch + parse logic behind listBusyIntervals/listCalendarEvents.
+// All-day events (no `dateTime`, only `date`) are treated as spanning the
+// entire day — we can't know what portion of it is actually busy.
+async function fetchEvents(
   client: OAuth2Client,
   timeMin: Date,
   timeMax: Date,
-): Promise<CalendarBusyInterval[]> {
+): Promise<CalendarEvent[]> {
   const { token } = await client.getAccessToken();
   const url = new URL(`${CALENDAR_API_BASE}/calendars/primary/events`);
   url.searchParams.set("timeMin", timeMin.toISOString());
@@ -108,25 +110,52 @@ export async function listBusyIntervals(
   }
 
   const body = (await res.json()) as { items?: GoogleCalendarEvent[] };
-  const busy: CalendarBusyInterval[] = [];
+  const events: CalendarEvent[] = [];
 
   for (const event of body.items ?? []) {
-    if (event.transparency === "transparent") continue; // "free" events
+    const transparent = event.transparency === "transparent";
+    const summary = event.summary ?? "";
 
     if (event.start?.dateTime && event.end?.dateTime) {
-      busy.push({
+      events.push({
         start: new Date(event.start.dateTime),
         end: new Date(event.end.dateTime),
+        summary,
+        transparent,
       });
     } else if (event.start?.date && event.end?.date) {
-      busy.push({
+      events.push({
         start: new Date(`${event.start.date}T00:00:00`),
         end: new Date(`${event.end.date}T00:00:00`),
+        summary,
+        transparent,
       });
     }
   }
 
-  return busy;
+  return events;
+}
+
+// Busy time between `timeMin` and `timeMax` on the user's primary calendar
+// (excludes events explicitly marked "free"/transparent).
+export async function listBusyIntervals(
+  client: OAuth2Client,
+  timeMin: Date,
+  timeMax: Date,
+): Promise<CalendarBusyInterval[]> {
+  const events = await fetchEvents(client, timeMin, timeMax);
+  return events.filter((e) => !e.transparent).map(({ start, end }) => ({ start, end }));
+}
+
+// Same events, but with the summary (title) text and transparency included
+// — needed to spot specific events (e.g. backward-planning's "Study: X"
+// sessions) rather than just knowing a time range is busy.
+export async function listCalendarEvents(
+  client: OAuth2Client,
+  timeMin: Date,
+  timeMax: Date,
+): Promise<CalendarEvent[]> {
+  return fetchEvents(client, timeMin, timeMax);
 }
 
 export async function createCalendarEvent(
