@@ -15,6 +15,10 @@ export default async function SyllabusPage() {
       })
     : [];
 
+  const canvasConnected = Boolean(
+    user?.integrations.find((i) => i.provider === "CANVAS")?.connectedAt,
+  );
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
       <div>
@@ -33,7 +37,7 @@ export default async function SyllabusPage() {
         <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
           Saved assignments
         </h2>
-        <SavedAssignments assignments={assignments} />
+        <SavedAssignments assignments={assignments} canvasConnected={canvasConnected} />
       </div>
     </div>
   );

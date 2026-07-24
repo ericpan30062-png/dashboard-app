@@ -22,6 +22,9 @@ export default async function PrioritiesPage() {
   const byDueDate = sortByDueDateAsc(scored);
 
   const summary = await getFocusSummary(byImpact);
+  const canvasConnected = Boolean(
+    user?.integrations.find((i) => i.provider === "CANVAS")?.connectedAt,
+  );
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -40,6 +43,7 @@ export default async function PrioritiesPage() {
         byDueDate={byDueDate}
         undated={undated}
         summary={summary}
+        canvasConnected={canvasConnected}
       />
     </div>
   );

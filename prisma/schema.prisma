@@ -19,6 +19,9 @@ model User {
   email     String   @unique
   name      String?
   imageUrl  String?
+  // Used by the study session sizer to compute "weeks since semester
+  // start" for Claude. Optional — the sizer still works without it.
+  semesterStartDate DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -69,6 +72,11 @@ model Assignment {
   dueDate   String?
   weight    Float?
   type      AssignmentType
+  // Set by the study session sizer (src/lib/study-sizer.ts): the final,
+  // user-adjusted hours estimate, and the linked Canvas course (so the
+  // module topics don't need to be re-selected on a later re-estimate).
+  estimatedHours  Float?
+  canvasCourseId  String?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 

@@ -1,6 +1,7 @@
 import { Calendar, GraduationCap, NotebookText } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getOrCreateUser } from "@/lib/clerk-sync";
+import { SemesterStartDate } from "@/components/dashboard/semester-start-date";
 import type { IntegrationProvider } from "@/generated/prisma/enums";
 
 const providerMeta: Record<
@@ -28,6 +29,18 @@ export default async function SettingsPage() {
           <code>src/lib/clerk-sync.ts</code>) so app data can reference it via
           Prisma.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 className="mb-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+          Study session sizer
+        </h2>
+        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+          Used to tell Claude how far into the semester an assignment falls
+          when estimating study time. Optional — the sizer still works
+          without it.
+        </p>
+        <SemesterStartDate initialDate={user?.semesterStartDate ?? null} />
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">

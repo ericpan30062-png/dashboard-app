@@ -5,11 +5,10 @@ import { dateKey, type CalendarBusyInterval } from "@/lib/google-calendar";
 
 const DUE_SOON_WINDOW_DAYS = 3;
 
-// Assignments don't have a stored time estimate (backward planning asks for
-// one ad hoc per session but doesn't persist it), so the load score uses a
-// heuristic default by type instead. These are rough, documented guesses —
-// not user-provided — good enough for a relative "how loaded is this day"
-// signal, not a precise time budget.
+// Fallback used when an assignment has no real estimate from the study
+// session sizer (src/lib/study-sizer.ts) yet. These are rough, documented
+// guesses — good enough for a relative "how loaded is this day" signal, not
+// a precise time budget.
 const HEURISTIC_HOURS_BY_TYPE: Record<AssignmentType, number> = {
   HOMEWORK: 2,
   PAPER: 6,
@@ -73,7 +72,8 @@ export function computeDailyLoads(
 
     const dueWeightSum = dueSoon.reduce((sum, { assignment }) => sum + (assignment.weight ?? 0), 0);
     const hoursNeededSum = dueSoon.reduce(
-      (sum, { assignment }) => sum + HEURISTIC_HOURS_BY_TYPE[assignment.type],
+      (sum, { assignment }) =>
+        sum + (assignment.estimatedHours ?? HEURISTIC_HOURS_BY_TYPE[assignment.type]),
       0,
     );
     const eventCount = busyIntervals.filter((b) => b.start < nextDay && b.end > day).length;

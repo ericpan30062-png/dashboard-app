@@ -1,10 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { CalendarClock, Ruler, Sparkles } from "lucide-react";
 import type { Assignment } from "@/generated/prisma/client";
 import type { ScoredAssignment } from "@/lib/grade-impact";
 import { StudyPlanModal } from "@/components/dashboard/study-plan-modal";
+import { StudySizerModal } from "@/components/dashboard/study-sizer-modal";
 
 type SortMode = "impact" | "dueDate";
 
@@ -19,19 +20,57 @@ function formatDueLabel(daysUntilDue: number) {
   return `In ${daysUntilDue} days`;
 }
 
+function RowActions({
+  onSize,
+  onPlan,
+}: {
+  onSize: () => void;
+  onPlan: () => void;
+}) {
+  return (
+    <div className="flex shrink-0 gap-1">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onSize();
+        }}
+        title="Estimate time"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-300"
+      >
+        <Ruler className="h-4 w-4" strokeWidth={1.75} />
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onPlan();
+        }}
+        title="Plan my time"
+        className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-300"
+      >
+        <CalendarClock className="h-4 w-4" strokeWidth={1.75} />
+      </button>
+    </div>
+  );
+}
+
 export function PriorityView({
   byImpact,
   byDueDate,
   undated,
   summary,
+  canvasConnected,
 }: {
   byImpact: ScoredAssignment[];
   byDueDate: ScoredAssignment[];
   undated: Assignment[];
   summary: string | null;
+  canvasConnected: boolean;
 }) {
   const [sortMode, setSortMode] = useState<SortMode>("impact");
-  const [selected, setSelected] = useState<Assignment | null>(null);
+  const [planFor, setPlanFor] = useState<Assignment | null>(null);
+  const [sizeFor, setSizeFor] = useState<Assignment | null>(null);
 
   const items = sortMode === "impact" ? byImpact : byDueDate;
   const maxImpact = useMemo(
@@ -119,8 +158,7 @@ export function PriorityView({
             return (
               <li
                 key={item.assignment.id}
-                onClick={() => setSelected(item.assignment)}
-                className="cursor-pointer rounded-xl border border-zinc-200 bg-white p-4 transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+                className="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-950"
               >
                 <div className="mb-2 flex items-start justify-between gap-3">
                   <div>
@@ -131,11 +169,19 @@ export function PriorityView({
                       {formatType(item.assignment.type)}
                       {item.assignment.weight != null &&
                         ` · ${item.assignment.weight}% of grade`}
+                      {item.assignment.estimatedHours != null &&
+                        ` · ~${item.assignment.estimatedHours}h`}
                     </p>
                   </div>
-                  <span className="shrink-0 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                    {formatDueLabel(item.daysUntilDue ?? 0)}
-                  </span>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                      {formatDueLabel(item.daysUntilDue ?? 0)}
+                    </span>
+                    <RowActions
+                      onSize={() => setSizeFor(item.assignment)}
+                      onPlan={() => setPlanFor(item.assignment)}
+                    />
+                  </div>
                 </div>
                 <div
                   className="h-2 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900"
@@ -165,8 +211,7 @@ export function PriorityView({
             {undated.map((assignment) => (
               <li
                 key={assignment.id}
-                onClick={() => setSelected(assignment)}
-                className="flex cursor-pointer items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 text-sm transition-colors hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+                className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white p-4 text-sm dark:border-zinc-800 dark:bg-zinc-950"
               >
                 <div>
                   <p className="font-medium text-zinc-950 dark:text-zinc-50">
@@ -178,17 +223,30 @@ export function PriorityView({
                       ` · ${assignment.weight}% of grade`}
                   </p>
                 </div>
-                <span className="text-xs text-zinc-400">
-                  {assignment.dueDate ?? "Unknown"}
-                </span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-xs text-zinc-400">
+                    {assignment.dueDate ?? "Unknown"}
+                  </span>
+                  <RowActions
+                    onSize={() => setSizeFor(assignment)}
+                    onPlan={() => setPlanFor(assignment)}
+                  />
+                </div>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {selected && (
-        <StudyPlanModal assignment={selected} onClose={() => setSelected(null)} />
+      {planFor && (
+        <StudyPlanModal assignment={planFor} onClose={() => setPlanFor(null)} />
+      )}
+      {sizeFor && (
+        <StudySizerModal
+          assignment={sizeFor}
+          canvasConnected={canvasConnected}
+          onClose={() => setSizeFor(null)}
+        />
       )}
     </div>
   );
