@@ -18,12 +18,13 @@ export default async function CalendarPage({
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <div>
         <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-          Google Calendar
+          Google Calendar &amp; Gmail
         </h2>
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          Connect your calendar so backward planning (click any assignment
-          to open &ldquo;Plan my time&rdquo;) can see your existing
-          commitments and add study sessions automatically.
+          One connection covers two things: backward planning (click any
+          assignment to open &ldquo;Plan my time&rdquo;) reads your calendar
+          and adds study sessions, and the office hours nudger sends emails
+          on your behalf via Gmail when you confirm a draft.
         </p>
       </div>
 

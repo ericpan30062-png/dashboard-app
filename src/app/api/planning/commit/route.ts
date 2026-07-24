@@ -71,6 +71,17 @@ export async function POST(request: Request) {
         start,
         end,
       });
+      // Local record of the scheduled session — the stuck detector
+      // (src/lib/stuck-detector.ts) needs this to notice a session that
+      // passed with no check-in, which a Calendar event alone can't express.
+      await prisma.studySession.create({
+        data: {
+          userId: user.id,
+          assignmentId: assignment.id,
+          scheduledStart: start,
+          scheduledEnd: end,
+        },
+      });
       created += 1;
     } catch (error) {
       console.error("createCalendarEvent failed:", error);

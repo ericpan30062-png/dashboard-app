@@ -1,7 +1,15 @@
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
 
-const SCOPES = ["https://www.googleapis.com/auth/calendar.events"];
+// One Google connection covers both Calendar (backward planning, crunch
+// predictor, the overwhelmed button) and Gmail send (the office hours
+// nudger, src/lib/gmail.ts) — simpler than a second OAuth flow for the
+// same account, at the cost of asking for gmail.send up front even for
+// users who never use the nudger.
+const SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/gmail.send",
+];
 const CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3";
 
 // Assumes the server and the signed-in user share a timezone — this is a

@@ -35,6 +35,7 @@ export function SavedAssignments({
           <thead>
             <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-800">
               <th className="px-4 py-2 font-medium">Name</th>
+              <th className="px-4 py-2 font-medium">Course</th>
               <th className="px-4 py-2 font-medium">Due date</th>
               <th className="px-4 py-2 font-medium">Weight</th>
               <th className="px-4 py-2 font-medium">Type</th>
@@ -50,6 +51,9 @@ export function SavedAssignments({
               >
                 <td className="px-4 py-2 text-zinc-800 dark:text-zinc-200">
                   {a.name}
+                </td>
+                <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
+                  {a.course ?? "—"}
                 </td>
                 <td className="px-4 py-2 text-zinc-600 dark:text-zinc-400">
                   {a.dueDate ?? "—"}

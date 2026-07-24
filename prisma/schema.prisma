@@ -27,6 +27,8 @@ model User {
 
   integrations Integration[]
   assignments  Assignment[]
+  officeHours  OfficeHours[]
+  studySessions StudySession[]
 }
 
 enum IntegrationProvider {
@@ -77,8 +79,77 @@ model Assignment {
   // module topics don't need to be re-selected on a later re-estimate).
   estimatedHours  Float?
   canvasCourseId  String?
+  // Free-text course label (e.g. "CS 101") set once at syllabus-upload time
+  // (src/components/dashboard/syllabus-uploader.tsx) — used to match an
+  // assignment to office hours for the same course (src/lib/office-hours-matcher.ts).
+  course    String?
   createdAt DateTime       @default(now())
   updatedAt DateTime       @updatedAt
 
+  studySessions StudySession[]
+
   @@index([userId])
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// Professor/TA office hours, either imported from a Canvas course's
+// syllabus text (src/lib/office-hours-extractor.ts) or entered manually.
+model OfficeHours {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course          String
+  instructorName  String
+  instructorEmail String?
+  dayOfWeek       DayOfWeek
+  // "HH:MM", 24-hour — there's no dedicated Time scalar in Prisma/Postgres
+  // here, and these are never date-arithmetic'd directly (see
+  // office-hours-matcher.ts for how a concrete next occurrence is derived).
+  startTime String
+  endTime   String
+  // Physical room or a Zoom/Meet link — same free-text field either way.
+  location  String
+  // "canvas" or "manual", so imported rows can be told apart from
+  // hand-entered ones if that's ever useful.
+  source    String    @default("manual")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+enum StudySessionStatus {
+  SCHEDULED
+  PROGRESS_MADE
+  BLOCKED
+}
+
+// One row per session written to Google Calendar by backward planning
+// (src/app/api/planning/commit/route.ts). The stuck detector
+// (src/lib/stuck-detector.ts) reads these to notice when a student marked
+// a session blocked, or let a scheduled session pass with no check-in.
+model StudySession {
+  id             String             @id @default(cuid())
+  userId         String
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignmentId   String
+  assignment     Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  status         StudySessionStatus @default(SCHEDULED)
+  blockedNote    String?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([userId])
+  @@index([assignmentId])
 }

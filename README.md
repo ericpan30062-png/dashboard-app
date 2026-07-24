@@ -66,6 +66,36 @@ study planning, and workload tools, and a placeholder for Notion.
   breakdown (recomputes the total) before saving it to the assignment. See
   `src/lib/study-sizer.ts`, `src/app/api/study-sizer/*`, and
   `src/components/dashboard/study-sizer-modal.tsx`.
+- **Office hours nudger** (`/dashboard/office-hours`): the most involved
+  feature here, with several supporting pieces built alongside it —
+  - *Office hours* are stored per user (course, instructor, day/time,
+    location or Zoom link) — add manually, or click "Import from Canvas",
+    which fetches each connected course's **syllabus body text** (Canvas has
+    no dedicated office-hours API) and asks Claude to extract entries from
+    it, the same extraction pattern as syllabus upload.
+  - *Study sessions* are now recorded locally (not just written to Google
+    Calendar) whenever backward planning commits a plan, so there's
+    something to check in on. A "check in" section lets you mark a past
+    session **Made progress** or **I'm blocked** (with an optional note).
+  - The *stuck detector* (`src/lib/stuck-detector.ts`, pure + unit-tested)
+    flags an assignment as stuck if any session was marked blocked, or if a
+    scheduled session's end time passed with no check-in at all.
+  - For each stuck assignment, "Draft email" matches it to office hours for
+    the same course (matched by the `course` field, set once at syllabus
+    upload time — see below), finds the **next occurrence that doesn't
+    conflict with your calendar** (`src/lib/office-hours-matcher.ts`, scans
+    a few weeks ahead), and asks Claude to draft a short professional email
+    referencing the specific blocker (or a general one, if none was given)
+    and the matched slot.
+  - The draft opens in an editable modal (to/subject/body) and sends via
+    the **Gmail API** on Send — this reuses the *same* Google OAuth
+    connection as Calendar rather than a second connect flow, by adding the
+    `gmail.send` scope to it (see the comment in `src/lib/google-calendar.ts`
+    and `src/lib/gmail.ts`).
+  - Matching an assignment to office hours needs a course label, which
+    assignments didn't have before this feature — syllabus upload now asks
+    for one course name applied to the whole batch (one syllabus = one
+    course), shown as a column in Saved Assignments/Priorities.
 
 ## Getting started
 
@@ -96,11 +126,13 @@ study planning, and workload tools, and a placeholder for Notion.
    - `PDF_EXTRACTOR_URL` — where the syllabus upload feature's PDF-extraction
      microservice is running (defaults to `http://localhost:8000`); see step 5.
    - `GOOGLE_CALENDAR_CLIENT_ID` / `GOOGLE_CALENDAR_CLIENT_SECRET` /
-     `GOOGLE_CALENDAR_REDIRECT_URI` — required for the Calendar page and
-     backward planning. In the
+     `GOOGLE_CALENDAR_REDIRECT_URI` — required for the Calendar page,
+     backward planning, and (via the same connection's `gmail.send` scope —
+     see `src/lib/google-calendar.ts`) the office hours nudger's "Send"
+     button. In the
      [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
      1. Create a project (or use an existing one) and enable the
-        **Google Calendar API**.
+        **Google Calendar API** and the **Gmail API**.
      2. Configure the OAuth consent screen (External is fine for testing;
         add your Google account as a test user while the app is unpublished).
      3. Create an **OAuth client ID** of type "Web application".
@@ -166,6 +198,7 @@ src/
       settings/               account info, integrations, semester start date
       priorities/             grade impact priority view (toggle: impact/due date)
       crunch/                 30-day load heat map + Claude danger-window analysis
+      office-hours/           office hours CRUD + Canvas import + stuck check-ins + nudge
       syllabus/               upload + review/edit + saved assignments
     api/
       syllabus/
@@ -181,19 +214,29 @@ src/
           courses/route.ts    lists the user's Canvas courses (for the sizer's course picker)
       planning/
         generate/route.ts     assignment + hours estimate -> free/busy from Calendar -> Claude plan (review only)
-        commit/route.ts       confirmed sessions -> creates Google Calendar events
+        commit/route.ts       confirmed sessions -> creates Google Calendar events + local StudySession rows
       overwhelmed/
         relief/route.ts       assignments + today's free time + exam countdowns -> Claude -> single focus task
       study-sizer/
         estimate/route.ts     assignment (+ Canvas module topics if linked) -> Claude -> hours breakdown (review only)
         save/route.ts         persists the user-adjusted total to Assignment.estimatedHours
+      study-sessions/
+        [id]/status/route.ts  mark a study session PROGRESS_MADE or BLOCKED (+ optional note)
+      office-hours/
+        route.ts              GET list / POST create
+        [id]/route.ts         DELETE
+        import-canvas/route.ts  per connected course: syllabus text -> Claude -> office hours entries
+      nudge/
+        draft/route.ts        stuck check -> matched office-hours slot (calendar-conflict-checked) -> Claude draft
+        send/route.ts         sends the (possibly edited) draft via Gmail
       settings/
         semester-start-date/route.ts  persists User.semesterStartDate
   components/dashboard/       Sidebar, Topbar, MobileNav, nav-items config
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
                                overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx
-                               semester-start-date.tsx
+                               semester-start-date.tsx, office-hours-table.tsx,
+                               study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx
   lib/
     prisma.ts                 Prisma client singleton (driver adapter)
     clerk-sync.ts             upserts the Clerk user into the local User table
@@ -206,12 +249,16 @@ src/
     crunch-predictor.ts         30-day load-score math + heat map color scale (pure, unit-tested)
     crunch-summary.ts           Claude call for the danger-window analysis
     overwhelm-relief.ts         Claude call for the "I'm overwhelmed" single-focus-task plan
-    canvas.ts                   per-user Canvas credentials, course list, module-topic list
+    canvas.ts                   per-user Canvas credentials, course list, module topics, syllabus text
     study-sizer.ts               Claude call for the study-hours breakdown estimate
+    office-hours-extractor.ts    Claude call extracting office hours from a Canvas syllabus
+    stuck-detector.ts             pure isAssignmentStuck() logic (unit-tested)
+    office-hours-matcher.ts       pure next-occurrence + calendar-conflict scan (unit-tested)
+    nudge-email.ts                Claude call drafting the office-hours nudge email
+    gmail.ts                      sends a message via the Gmail API (shares the Calendar OAuth client)
   proxy.ts                    Next.js 16's Middleware equivalent (session refresh only)
 prisma/
-  schema.prisma               User, Integration, and Assignment models (estimatedHours,
-                               canvasCourseId, semesterStartDate added for the sizer)
+  schema.prisma               User, Integration, Assignment, OfficeHours, and StudySession models
 services/
   pdf-extractor/               FastAPI + pdfplumber microservice (see its own README)
 ```

@@ -166,6 +166,7 @@ export function PriorityView({
                       {item.assignment.name}
                     </p>
                     <p className="text-xs text-zinc-500">
+                      {item.assignment.course && `${item.assignment.course} · `}
                       {formatType(item.assignment.type)}
                       {item.assignment.weight != null &&
                         ` · ${item.assignment.weight}% of grade`}

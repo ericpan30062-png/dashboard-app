@@ -8,6 +8,7 @@ import {
   FileUp,
   Flame,
   Thermometer,
+  DoorOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -21,6 +22,7 @@ export const navItems: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/priorities", label: "Priorities", icon: Flame },
   { href: "/dashboard/crunch", label: "Crunch Predictor", icon: Thermometer },
+  { href: "/dashboard/office-hours", label: "Office Hours", icon: DoorOpen },
   { href: "/dashboard/calendar", label: "Calendar", icon: Calendar },
   { href: "/dashboard/courses", label: "Courses", icon: GraduationCap },
   { href: "/dashboard/syllabus", label: "Syllabus", icon: FileUp },

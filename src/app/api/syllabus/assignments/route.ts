@@ -8,6 +8,7 @@ import { ExtractedAssignmentSchema } from "@/lib/syllabus-schema";
 export const runtime = "nodejs";
 
 const ConfirmAssignmentsSchema = z.object({
+  course: z.string().nullable().optional(),
   assignments: z.array(ExtractedAssignmentSchema).min(1),
 });
 
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
           dueDate: a.dueDate,
           weight: a.weight,
           type: a.type,
+          course: parsed.data.course || null,
         },
       }),
     ),

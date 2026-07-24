@@ -29,6 +29,7 @@ export function SyllabusUploader() {
   >("idle");
   const [error, setError] = useState<string | null>(null);
   const [rows, setRows] = useState<DraftRow[]>([]);
+  const [course, setCourse] = useState("");
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -93,6 +94,7 @@ export function SyllabusUploader() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          course: course || null,
           assignments: rows.map((row) => ({
             name: row.name,
             dueDate: row.dueDate,
@@ -108,6 +110,7 @@ export function SyllabusUploader() {
       }
 
       setRows([]);
+      setCourse("");
       setStatus("idle");
       router.refresh();
     } catch (err) {
@@ -174,6 +177,20 @@ export function SyllabusUploader() {
               + Add row
             </button>
           </div>
+
+          <label className="flex flex-col gap-1 text-sm">
+            <span className="font-medium text-zinc-700 dark:text-zinc-300">
+              Course (applies to all assignments below — used to match office
+              hours later)
+            </span>
+            <input
+              value={course}
+              onChange={(e) => setCourse(e.target.value)}
+              placeholder="e.g. CS 101"
+              disabled={status === "saving"}
+              className="w-64 rounded-md border border-zinc-200 bg-transparent px-3 py-1.5 dark:border-zinc-800"
+            />
+          </label>
 
           <div className="overflow-x-auto">
             <table className="w-full min-w-[640px] text-sm">

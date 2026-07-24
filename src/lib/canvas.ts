@@ -77,3 +77,36 @@ export async function listCourseModuleTopics(
   const body = (await res.json()) as Array<{ name?: string }>;
   return body.map((m) => m.name).filter((name): name is string => Boolean(name));
 }
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+}
+
+// Canvas has no dedicated "office hours" API — instructors who publish them
+// typically do so in the course syllabus body (free HTML text), so that's
+// what office-hours-extractor.ts asks Claude to read.
+export async function getCourseSyllabus(
+  creds: CanvasCredentials,
+  courseId: string,
+): Promise<{ name: string; syllabusText: string | null }> {
+  const res = await fetch(
+    `${normalizeBaseUrl(creds.baseUrl)}/api/v1/courses/${courseId}?include[]=syllabus_body`,
+    { headers: { Authorization: `Bearer ${creds.token}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`Canvas get course failed: ${res.status}`);
+  }
+
+  const body = (await res.json()) as { name?: string; syllabus_body?: string | null };
+  const syllabusText = body.syllabus_body ? stripHtml(body.syllabus_body) : null;
+  return { name: body.name ?? "Untitled course", syllabusText: syllabusText || null };
+}
