@@ -30,6 +30,7 @@ model User {
   officeHours  OfficeHours[]
   studySessions StudySession[]
   examPlans    ExamPlan[]
+  procrastinationNudges ProcrastinationNudge[]
 }
 
 enum IntegrationProvider {
@@ -89,6 +90,7 @@ model Assignment {
 
   studySessions StudySession[]
   examPlan      ExamPlan?
+  procrastinationNudges ProcrastinationNudge[]
 
   @@index([userId])
 }
@@ -202,4 +204,24 @@ model ExamPlanTopic {
 
   @@index([examPlanDayId])
   @@map("exam_plan_topics")
+}
+
+// One row per nudge actually sent by the daily procrastination-detection job
+// (src/lib/procrastination-nudge-job.ts, run via GET
+// /api/cron/procrastination-nudge). Keeping history (rather than a single
+// `lastNudgedAt` on Assignment) is what lets the job enforce "don't nudge
+// the same assignment more than once every 48 hours" with a simple
+// most-recent-row-per-assignment query.
+model ProcrastinationNudge {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignmentId String
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  message      String
+  createdAt    DateTime   @default(now())
+
+  @@index([userId])
+  @@index([assignmentId])
+  @@map("procrastination_nudges")
 }

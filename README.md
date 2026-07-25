@@ -112,6 +112,25 @@ study planning, and workload tools, and a placeholder for Notion.
   (the Claude call), `src/lib/exam-plan-job.ts` (the scan/idempotency
   logic), `src/app/api/cron/exam-plans/route.ts`, and
   `src/components/dashboard/exam-countdown-widget.tsx`.
+- **Procrastination detector**: a second daily background job
+  (`GET /api/cron/procrastination-nudge`, meant to run once a day — e.g.
+  8am, see `CRON_SECRET` below) flags an assignment as "avoided" once it's
+  more than 3 days old, due within the next 10 days, and has no
+  `StudySession` rows (i.e. never scheduled via backward planning). For
+  each user with at least one avoided assignment, it ranks candidates by
+  the same `weight x urgencyMultiplier` score the Priorities page uses
+  (`src/lib/grade-impact.ts`), skips any whose most recent nudge landed
+  within the last 48 hours (falling through to the next-most-critical
+  candidate instead of just giving up), and asks Claude for a short,
+  honest, non-shaming 2-3 sentence nudge about the one it picked. The
+  nudge is emailed via the Gmail API (same Google OAuth connection as
+  Calendar — see `src/lib/gmail.ts`) and logged to `ProcrastinationNudge`
+  so the 48h cooldown has something to check against. Users without Google
+  connected are skipped (no other send channel is wired up). See
+  `src/lib/procrastination-detector.ts` (pure flagging logic),
+  `src/lib/procrastination-nudge.ts` (the Claude call),
+  `src/lib/procrastination-nudge-job.ts` (per-user orchestration + cooldown
+  + send), and `src/app/api/cron/procrastination-nudge/route.ts`.
 
 ## Getting started
 
@@ -156,12 +175,13 @@ study planning, and workload tools, and a placeholder for Notion.
         as an authorized redirect URI (must exactly match
         `GOOGLE_CALENDAR_REDIRECT_URI`).
      5. Copy the client ID and secret into `.env`.
-   - `CRON_SECRET` — required for the pre-exam countdown mode's daily job
-     (`GET /api/cron/exam-plans`). Any random string works for local dev
-     (e.g. `openssl rand -hex 24`); trigger it manually with
-     `curl http://localhost:3000/api/cron/exam-plans?secret=<CRON_SECRET>`
-     or point a scheduler (Vercel Cron, launchd, GitHub Actions) at it with
-     `Authorization: Bearer <CRON_SECRET>`.
+   - `CRON_SECRET` — shared by both daily jobs: pre-exam countdown mode
+     (`GET /api/cron/exam-plans`) and the procrastination detector
+     (`GET /api/cron/procrastination-nudge`). Any random string works for
+     local dev (e.g. `openssl rand -hex 24`); trigger either manually with
+     `curl "http://localhost:3000/api/cron/<job>?secret=<CRON_SECRET>"`
+     or point a scheduler (Vercel Cron, launchd, GitHub Actions) at them
+     with `Authorization: Bearer <CRON_SECRET>`.
 
 3. **Set up the database**
 
@@ -225,6 +245,7 @@ src/
     api/
       cron/
         exam-plans/route.ts    daily job entrypoint, shared-secret auth (see runExamPlanCheck)
+        procrastination-nudge/route.ts  daily job entrypoint (see runProcrastinationNudgeCheck)
       exam-plans/
         topics/[id]/route.ts  PATCH toggles a topic's completed flag, returns recomputed coverage
       syllabus/
@@ -285,9 +306,12 @@ src/
     gmail.ts                      sends a message via the Gmail API (shares the Calendar OAuth client)
     exam-plan-generator.ts        Claude call for the day-by-day countdown study plan
     exam-plan-job.ts               daily scan of EXAM assignments, idempotent per assignment
+    procrastination-detector.ts    pure "avoided assignment" flagging logic
+    procrastination-nudge.ts       Claude call for the short honest nudge message
+    procrastination-nudge-job.ts   per-user scan, cooldown filtering, email send + logging
   proxy.ts                    Next.js 16's Middleware equivalent (session refresh only)
 prisma/
-  schema.prisma               User, Integration, Assignment, OfficeHours, StudySession, and ExamPlan models
+  schema.prisma               User, Integration, Assignment, OfficeHours, StudySession, ExamPlan, and ProcrastinationNudge models
 services/
   pdf-extractor/               FastAPI + pdfplumber microservice (see its own README)
 ```
