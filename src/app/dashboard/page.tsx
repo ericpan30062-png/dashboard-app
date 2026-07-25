@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { Calendar, GraduationCap, NotebookText, Sparkles } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
+import { prisma } from "@/lib/prisma";
 import { getOrCreateUser } from "@/lib/clerk-sync";
 import { OverwhelmedButton } from "@/components/dashboard/overwhelmed-button";
+import {
+  ExamCountdownWidget,
+  type ExamPlanSummary,
+} from "@/components/dashboard/exam-countdown-widget";
+import { parseDueDate, daysUntil } from "@/lib/grade-impact";
+import { dateKey } from "@/lib/google-calendar";
 
 const cards = [
   {
@@ -39,6 +46,50 @@ export default async function DashboardPage() {
   const user = await getOrCreateUser();
   const firstName = user?.name?.split(" ")[0];
 
+  const now = new Date();
+  const today = dateKey(now);
+
+  const examPlans = user
+    ? await prisma.examPlan.findMany({
+        where: { userId: user.id },
+        include: {
+          assignment: true,
+          days: { include: { topics: true }, orderBy: { date: "asc" } },
+        },
+      })
+    : [];
+
+  const activePlans: ExamPlanSummary[] = examPlans
+    .map((plan) => {
+      const dueDate = parseDueDate(plan.assignment.dueDate);
+      if (!dueDate) return null;
+      const daysUntilExam = daysUntil(dueDate, now);
+      if (daysUntilExam < 0) return null;
+
+      const todayDay =
+        plan.days.find((d) => d.date === today) ??
+        plan.days.find((d) => d.date >= today) ??
+        null;
+      const allTopics = plan.days.flatMap((d) => d.topics);
+
+      return {
+        assignmentId: plan.assignmentId,
+        examName: plan.assignment.name,
+        daysUntilExam,
+        todayDate: todayDay?.date ?? null,
+        todayTopics: todayDay?.topics.map((t) => ({
+          id: t.id,
+          topic: t.topic,
+          completed: t.completed,
+        })) ?? [],
+        todayEstimatedMinutes: todayDay?.estimatedDurationMinutes ?? 0,
+        totalTopics: allTopics.length,
+        completedTopics: allTopics.filter((t) => t.completed).length,
+      };
+    })
+    .filter((p): p is ExamPlanSummary => p !== null)
+    .sort((a, b) => a.daysUntilExam - b.daysUntilExam);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -49,6 +100,8 @@ export default async function DashboardPage() {
           Here&apos;s what&apos;s connected to your dashboard.
         </p>
       </div>
+
+      <ExamCountdownWidget plans={activePlans} />
 
       <OverwhelmedButton />
 

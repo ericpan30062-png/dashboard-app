@@ -268,3 +268,38 @@ export function computeFreeBlocks(
 
   return blocks;
 }
+
+// Flat per-day assumption used only when Google Calendar isn't connected —
+// better than treating "unknown" as zero available time, which would make
+// Claude think the student has no time to study at all.
+export const DEFAULT_DAILY_STUDY_HOURS_FALLBACK = 2;
+
+// Per-day available study hours between `from` and `to` (inclusive),
+// summing computeFreeBlocks for each day. Pass `busy: null` when Calendar
+// isn't connected to get the flat fallback instead of real free/busy data.
+export function getAvailableTime(
+  busy: CalendarBusyInterval[] | null,
+  from: Date,
+  to: Date,
+): { date: string; hours: number }[] {
+  const days: string[] = [];
+  let cursor = startOfDay(from);
+  const lastDay = startOfDay(to).getTime();
+  while (cursor.getTime() <= lastDay) {
+    days.push(dateKey(cursor));
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 1);
+  }
+
+  if (busy === null) {
+    return days.map((date) => ({ date, hours: DEFAULT_DAILY_STUDY_HOURS_FALLBACK }));
+  }
+
+  const blocks = computeFreeBlocks(busy, from, to);
+  const hoursByDate = new Map<string, number>();
+  for (const block of blocks) {
+    const hours = (block.end.getTime() - block.start.getTime()) / (1000 * 60 * 60);
+    hoursByDate.set(block.date, (hoursByDate.get(block.date) ?? 0) + hours);
+  }
+
+  return days.map((date) => ({ date, hours: hoursByDate.get(date) ?? 0 }));
+}

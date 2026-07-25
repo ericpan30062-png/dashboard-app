@@ -96,6 +96,22 @@ study planning, and workload tools, and a placeholder for Notion.
     assignments didn't have before this feature — syllabus upload now asks
     for one course name applied to the whole batch (one syllabus = one
     course), shown as a column in Saved Assignments/Priorities.
+- **Pre-exam countdown mode** (Overview page): a daily background job
+  (`GET /api/cron/exam-plans`, meant to be hit once a day by an external
+  scheduler — see `CRON_SECRET` below) scans every `EXAM`-type assignment,
+  and for any that fall within 7 days and don't already have a plan, asks
+  Claude for a day-by-day countdown study plan (topics + estimated minutes
+  per day), using Canvas module names as topics when the course is linked
+  and real Google Calendar free time when connected (a flat 2h/day fallback
+  otherwise). The plan is generated once per exam and never regenerated, so
+  a student's checked-off topics survive later runs of the job. The
+  dashboard overview shows a countdown card per active plan — today's
+  topics as a checklist, an overall completion bar, and estimated minutes
+  for today — with checkbox toggles persisted via
+  `PATCH /api/exam-plans/topics/[id]`. See `src/lib/exam-plan-generator.ts`
+  (the Claude call), `src/lib/exam-plan-job.ts` (the scan/idempotency
+  logic), `src/app/api/cron/exam-plans/route.ts`, and
+  `src/components/dashboard/exam-countdown-widget.tsx`.
 
 ## Getting started
 
@@ -140,6 +156,12 @@ study planning, and workload tools, and a placeholder for Notion.
         as an authorized redirect URI (must exactly match
         `GOOGLE_CALENDAR_REDIRECT_URI`).
      5. Copy the client ID and secret into `.env`.
+   - `CRON_SECRET` — required for the pre-exam countdown mode's daily job
+     (`GET /api/cron/exam-plans`). Any random string works for local dev
+     (e.g. `openssl rand -hex 24`); trigger it manually with
+     `curl http://localhost:3000/api/cron/exam-plans?secret=<CRON_SECRET>`
+     or point a scheduler (Vercel Cron, launchd, GitHub Actions) at it with
+     `Authorization: Bearer <CRON_SECRET>`.
 
 3. **Set up the database**
 
@@ -201,6 +223,10 @@ src/
       office-hours/           office hours CRUD + Canvas import + stuck check-ins + nudge
       syllabus/               upload + review/edit + saved assignments
     api/
+      cron/
+        exam-plans/route.ts    daily job entrypoint, shared-secret auth (see runExamPlanCheck)
+      exam-plans/
+        topics/[id]/route.ts  PATCH toggles a topic's completed flag, returns recomputed coverage
       syllabus/
         extract/route.ts      PDF -> microservice -> Claude -> unsaved assignments JSON
         assignments/route.ts  GET/POST saved assignments (Prisma, linked to the user)
@@ -236,7 +262,8 @@ src/
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
                                overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx
                                semester-start-date.tsx, office-hours-table.tsx,
-                               study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx
+                               study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx,
+                               exam-countdown-widget.tsx
   lib/
     prisma.ts                 Prisma client singleton (driver adapter)
     clerk-sync.ts             upserts the Clerk user into the local User table
@@ -256,9 +283,11 @@ src/
     office-hours-matcher.ts       pure next-occurrence + calendar-conflict scan (unit-tested)
     nudge-email.ts                Claude call drafting the office-hours nudge email
     gmail.ts                      sends a message via the Gmail API (shares the Calendar OAuth client)
+    exam-plan-generator.ts        Claude call for the day-by-day countdown study plan
+    exam-plan-job.ts               daily scan of EXAM assignments, idempotent per assignment
   proxy.ts                    Next.js 16's Middleware equivalent (session refresh only)
 prisma/
-  schema.prisma               User, Integration, Assignment, OfficeHours, and StudySession models
+  schema.prisma               User, Integration, Assignment, OfficeHours, StudySession, and ExamPlan models
 services/
   pdf-extractor/               FastAPI + pdfplumber microservice (see its own README)
 ```

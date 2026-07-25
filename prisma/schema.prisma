@@ -29,6 +29,7 @@ model User {
   assignments  Assignment[]
   officeHours  OfficeHours[]
   studySessions StudySession[]
+  examPlans    ExamPlan[]
 }
 
 enum IntegrationProvider {
@@ -87,6 +88,7 @@ model Assignment {
   updatedAt DateTime       @updatedAt
 
   studySessions StudySession[]
+  examPlan      ExamPlan?
 
   @@index([userId])
 }
@@ -152,4 +154,52 @@ model StudySession {
 
   @@index([userId])
   @@index([assignmentId])
+}
+
+// Generated once per exam assignment by the daily background job
+// (src/lib/exam-plan-job.ts, run via GET /api/cron/exam-plans) the first
+// time that exam falls within 7 days — never regenerated after that, so a
+// student's checked-off topics (ExamPlanTopic.completed) aren't lost.
+// Relational rather than a JSON blob so a single topic can be toggled by
+// ID and "remaining coverage" recomputed without a read-modify-write of
+// the whole plan.
+model ExamPlan {
+  id           String       @id @default(cuid())
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignmentId String       @unique
+  assignment   Assignment   @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  days         ExamPlanDay[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([userId])
+  @@map("exam_plans")
+}
+
+model ExamPlanDay {
+  id                      String         @id @default(cuid())
+  examPlanId              String
+  examPlan                ExamPlan       @relation(fields: [examPlanId], references: [id], onDelete: Cascade)
+  date                    String // "YYYY-MM-DD"
+  estimatedDurationMinutes Int
+  topics                  ExamPlanTopic[]
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  @@index([examPlanId])
+  @@map("exam_plan_days")
+}
+
+model ExamPlanTopic {
+  id            String      @id @default(cuid())
+  examPlanDayId String
+  examPlanDay   ExamPlanDay @relation(fields: [examPlanDayId], references: [id], onDelete: Cascade)
+  topic         String
+  completed     Boolean     @default(false)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([examPlanDayId])
+  @@map("exam_plan_topics")
 }
