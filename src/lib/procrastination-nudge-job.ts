@@ -9,6 +9,7 @@ const NUDGE_COOLDOWN_HOURS = 48;
 export type ProcrastinationNudgeCheckResult = {
   usersChecked: number;
   nudged: number;
+  skippedOptedOut: number;
   skippedNoAvoidance: number;
   skippedCooldown: number;
   skippedNoGoogle: number;
@@ -50,7 +51,9 @@ async function filterOutOnCooldown(
 // Google connected — sends a Claude-drafted nudge email and records it so
 // the same assignment won't be nudged again too soon. Users without a
 // connected Google account are skipped rather than erroring, same as other
-// optional-integration paths in this app (Canvas, Calendar).
+// optional-integration paths in this app (Canvas, Calendar). Users who
+// muted this notification (Settings page, User.procrastinationNudgesEnabled)
+// are skipped before any avoidance detection even runs.
 export async function runProcrastinationNudgeCheck(
   now: Date = new Date(),
 ): Promise<ProcrastinationNudgeCheckResult> {
@@ -61,6 +64,7 @@ export async function runProcrastinationNudgeCheck(
   const result: ProcrastinationNudgeCheckResult = {
     usersChecked: 0,
     nudged: 0,
+    skippedOptedOut: 0,
     skippedNoAvoidance: 0,
     skippedCooldown: 0,
     skippedNoGoogle: 0,
@@ -69,6 +73,11 @@ export async function runProcrastinationNudgeCheck(
 
   for (const user of users) {
     result.usersChecked += 1;
+
+    if (!user.procrastinationNudgesEnabled) {
+      result.skippedOptedOut += 1;
+      continue;
+    }
 
     const avoided = findAvoidedAssignments(user.assignments, now);
     if (avoided.length === 0) {

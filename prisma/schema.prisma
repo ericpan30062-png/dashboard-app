@@ -22,6 +22,12 @@ model User {
   // Used by the study session sizer to compute "weeks since semester
   // start" for Claude. Optional — the sizer still works without it.
   semesterStartDate DateTime?
+  // Opt-out for the daily procrastination-nudge cron job (see
+  // src/lib/procrastination-nudge-job.ts). A dedicated field per
+  // notification type rather than one generic flag/JSON blob, so a future
+  // second notification type (e.g. an exam-plan digest) can be muted
+  // independently.
+  procrastinationNudgesEnabled Boolean @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

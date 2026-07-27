@@ -2,6 +2,7 @@ import { Calendar, GraduationCap, NotebookText } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getOrCreateUser } from "@/lib/clerk-sync";
 import { SemesterStartDate } from "@/components/dashboard/semester-start-date";
+import { NotificationSettings } from "@/components/dashboard/notification-settings";
 import type { IntegrationProvider } from "@/generated/prisma/enums";
 
 const providerMeta: Record<
@@ -41,6 +42,19 @@ export default async function SettingsPage() {
           without it.
         </p>
         <SemesterStartDate initialDate={user?.semesterStartDate ?? null} />
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 className="mb-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+          Notifications
+        </h2>
+        <div className="divide-y divide-zinc-100 dark:divide-zinc-900">
+          <NotificationSettings
+            initialProcrastinationNudgesEnabled={
+              user?.procrastinationNudgesEnabled ?? true
+            }
+          />
+        </div>
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">

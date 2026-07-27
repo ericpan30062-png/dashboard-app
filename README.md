@@ -126,7 +126,10 @@ study planning, and workload tools, and a placeholder for Notion.
   nudge is emailed via the Gmail API (same Google OAuth connection as
   Calendar — see `src/lib/gmail.ts`) and logged to `ProcrastinationNudge`
   so the 48h cooldown has something to check against. Users without Google
-  connected are skipped (no other send channel is wired up). See
+  connected are skipped (no other send channel is wired up), as are users
+  who muted it via the toggle on the Settings page
+  (`User.procrastinationNudgesEnabled`, see
+  `src/components/dashboard/notification-settings.tsx`). See
   `src/lib/procrastination-detector.ts` (pure flagging logic),
   `src/lib/procrastination-nudge.ts` (the Claude call),
   `src/lib/procrastination-nudge-job.ts` (per-user orchestration + cooldown
@@ -237,7 +240,7 @@ src/
       notes/ assistant/
       calendar/               Google Calendar connect/disconnect status
       courses/                Canvas connect form (URL + personal access token)
-      settings/               account info, integrations, semester start date
+      settings/               account info, integrations, semester start date, notification toggles
       priorities/             grade impact priority view (toggle: impact/due date)
       crunch/                 30-day load heat map + Claude danger-window analysis
       office-hours/           office hours CRUD + Canvas import + stuck check-ins + nudge
@@ -278,13 +281,14 @@ src/
         send/route.ts         sends the (possibly edited) draft via Gmail
       settings/
         semester-start-date/route.ts  persists User.semesterStartDate
+        notifications/route.ts        persists User.procrastinationNudgesEnabled
   components/dashboard/       Sidebar, Topbar, MobileNav, nav-items config
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
                                overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx
                                semester-start-date.tsx, office-hours-table.tsx,
                                study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx,
-                               exam-countdown-widget.tsx
+                               exam-countdown-widget.tsx, notification-settings.tsx
   lib/
     prisma.ts                 Prisma client singleton (driver adapter)
     clerk-sync.ts             upserts the Clerk user into the local User table
