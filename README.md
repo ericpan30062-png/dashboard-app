@@ -318,6 +318,11 @@ prisma/
   schema.prisma               User, Integration, Assignment, OfficeHours, StudySession, ExamPlan, and ProcrastinationNudge models
 services/
   pdf-extractor/               FastAPI + pdfplumber microservice (see its own README)
+scripts/
+  trigger-cron.sh              curls one /api/cron/<job> endpoint using CRON_SECRET from .env
+  install-launchd-cron.sh      installs + loads both daily launchd agents (see "Local scheduling")
+  uninstall-launchd-cron.sh    unloads + removes them
+  launchd/*.plist               source-of-truth plists copied into ~/Library/LaunchAgents
 ```
 
 ## Useful scripts
@@ -326,3 +331,39 @@ services/
 - `npm run db:migrate` — create/apply a migration after editing `schema.prisma`.
 - `npm run lint` — ESLint.
 - `npm run build` — production build.
+
+## Local scheduling (launchd)
+
+Neither this project nor its GitHub repo is deployed anywhere — there's no
+Vercel project, no CI, nothing hosting a publicly reachable copy of the app.
+So the two daily cron endpoints (`/api/cron/exam-plans`,
+`/api/cron/procrastination-nudge`) need something local to actually trigger
+them; nothing calls them on its own otherwise.
+
+`scripts/install-launchd-cron.sh` installs two per-user launchd agents (the
+macOS equivalent of cron) that curl both endpoints against
+`http://localhost:3000` at 8am daily, authenticating with `CRON_SECRET` from
+`.env`:
+
+```bash
+./scripts/install-launchd-cron.sh    # installs + loads both agents
+launchctl list | grep dashboard-app  # confirm they're registered
+./scripts/uninstall-launchd-cron.sh  # unloads + removes both
+```
+
+Caveats:
+
+- These only fire something if `npm run dev` (or a production `next start`)
+  is actually running on port 3000 at 8am — a laptop that's asleep, or a dev
+  server that isn't up, means a silent no-op that day, not a retry.
+- Logs (including no-op / connection-failure cases, which exit `0` rather
+  than erroring so a closed dev server doesn't show up as a launchd
+  failure) land in `~/Library/Logs/dashboard-app-cron/<job>.log`.
+- The install script is idempotent — re-running it after editing
+  `scripts/launchd/*.plist` reloads the updated version.
+- If this app is ever deployed (Vercel, etc.), the native equivalent would
+  be Vercel Cron (a `crons` array in a `vercel.json` this repo doesn't have
+  yet). The `CRON_SECRET` check in each `src/app/api/cron/*/route.ts`
+  already matches how Vercel Cron authenticates (`Authorization: Bearer
+  <CRON_SECRET>`), so no route code would need to change — only a
+  `vercel.json` would need adding at that point.
