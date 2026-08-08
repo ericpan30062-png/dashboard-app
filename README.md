@@ -1,6 +1,6 @@
 A Next.js dashboard scaffold with Postgres/Prisma, Clerk authentication,
 Google Calendar and Canvas LMS integration, Claude-powered syllabus parsing,
-study planning, and workload tools, and a placeholder for Notion.
+study planning, workload tools, and Notion-backed notes.
 
 ## Stack
 
@@ -56,6 +56,18 @@ study planning, and workload tools, and a placeholder for Notion.
   New Access Token in Canvas), verified and stored on the `Integration`
   table, no global env vars. See `src/lib/canvas.ts` and
   `src/app/api/integrations/canvas/*`.
+- **Notes** (`/dashboard/notes`): a lightweight notes app backed by a Notion
+  database instead of Postgres — each user connects their own Notion
+  "internal integration" token + a database they've shared with it (same
+  per-user pattern as Canvas). On connect, the app finds the database's
+  title property and adds a `Body` rich-text property if one doesn't
+  already exist, so no manual schema setup is required. Create/edit/delete
+  notes here and they show up as pages in that Notion database (delete
+  archives the page rather than hard-deleting, since that's all the Notion
+  API supports). No block-based rich content — the note body is plain text
+  capped at 2000 characters (a single Notion rich-text property's limit).
+  See `src/lib/notion.ts`, `src/app/api/integrations/notion/*`,
+  `src/app/api/notes/*`, and `src/components/dashboard/notes-view.tsx`.
 - **Study session sizer**: click the ruler icon next to any assignment to
   estimate how long it'll take. If Canvas is connected, pick which course
   it's for (saved for next time) and its module names are sent as topics;
@@ -153,8 +165,13 @@ study planning, and workload tools, and a placeholder for Notion.
      and copy `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY`. If you
      leave these blank, Clerk falls back to a "keyless" dev mode and prints a
      claim link in the terminal the first time you run `next dev`.
-   - `NOTION_*` — see `.env.example` for where to get each one. Not wired up
-     yet; the Notes page documents which env vars it needs.
+   - Notion needs no env var — each user connects their own integration
+     token + database ID on the Notes page (see
+     `src/components/dashboard/notion-connection.tsx` and
+     `src/lib/notion.ts`), the same per-user pattern as Canvas below. Create
+     an integration at [notion.so/my-integrations](https://www.notion.so/my-integrations),
+     share a database with it, and paste the token + that database's ID
+     (from its URL) in.
    - Canvas needs no env vars — each user connects their own Canvas URL +
      personal access token from the Courses page in the dashboard, once
      signed in (see the feature list above).
@@ -243,7 +260,8 @@ src/
     dashboard/
       layout.tsx             sidebar + topbar shell
       page.tsx                overview
-      notes/ assistant/
+      notes/                  Notion connect form (token + database ID) + notes CRUD once connected
+      assistant/
       calendar/               Google Calendar connect/disconnect status
       courses/                Canvas connect form (URL + personal access token)
       settings/               account info, integrations, semester start date, notification toggles
@@ -271,6 +289,12 @@ src/
         anthropic/
           connect/route.ts    verifies the API key (models.list), stores on Integration
           disconnect/route.ts deletes the stored Integration row
+        notion/
+          connect/route.ts    verifies the token+database, adds a Body property if missing, stores on Integration
+          disconnect/route.ts deletes the stored Integration row
+      notes/
+        route.ts               GET list / POST create (proxied straight to the user's Notion database)
+        [id]/route.ts          PATCH update / DELETE (archives the Notion page)
       planning/
         generate/route.ts     assignment + hours estimate -> free/busy from Calendar -> Claude plan (review only)
         commit/route.ts       confirmed sessions -> creates Google Calendar events + local StudySession rows
@@ -295,7 +319,7 @@ src/
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
                                overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx,
-                               anthropic-connection.tsx
+                               anthropic-connection.tsx, notion-connection.tsx, notes-view.tsx
                                semester-start-date.tsx, office-hours-table.tsx,
                                study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx,
                                exam-countdown-widget.tsx, notification-settings.tsx
@@ -312,6 +336,7 @@ src/
     crunch-summary.ts           Claude call for the danger-window analysis
     overwhelm-relief.ts         Claude call for the "I'm overwhelmed" single-focus-task plan
     canvas.ts                   per-user Canvas credentials, course list, module topics, syllabus text
+    notion.ts                    per-user Notion credentials + notes CRUD (hand-rolled REST client)
     study-sizer.ts               Claude call for the study-hours breakdown estimate
     office-hours-extractor.ts    Claude call extracting office hours from a Canvas syllabus
     stuck-detector.ts             pure isAssignmentStuck() logic (unit-tested)
