@@ -1,6 +1,6 @@
 A Next.js dashboard scaffold with Postgres/Prisma, Clerk authentication,
 Google Calendar and Canvas LMS integration, Claude-powered syllabus parsing,
-study planning, workload tools, and Notion-backed notes.
+study planning, workload tools, Notion-backed notes, and an AI assistant.
 
 ## Stack
 
@@ -146,6 +146,15 @@ study planning, workload tools, and Notion-backed notes.
   `src/lib/procrastination-nudge.ts` (the Claude call),
   `src/lib/procrastination-nudge-job.ts` (per-user orchestration + cooldown
   + send), and `src/app/api/cron/procrastination-nudge/route.ts`.
+- **AI Assistant** (`/dashboard/assistant`): single-turn Q&A, not a
+  persisted chat — type a question, get one answer, refreshing clears it
+  (every other Claude feature in this app is one-shot, not conversational,
+  so this matches). Answers are grounded in the user's assignments (always)
+  plus, for whichever of Calendar/Canvas/Notion they've connected, the next
+  7 days of events, their Canvas courses, and their 20 most-recently-updated
+  notes — each missing integration just narrows what it can answer rather
+  than blocking the question. See `src/lib/assistant.ts` (the Claude call)
+  and `src/app/api/assistant/ask/route.ts` (gathers the optional context).
 
 ## Getting started
 
@@ -261,7 +270,7 @@ src/
       layout.tsx             sidebar + topbar shell
       page.tsx                overview
       notes/                  Notion connect form (token + database ID) + notes CRUD once connected
-      assistant/
+      assistant/              single-turn Q&A grounded in assignments + optional Calendar/Canvas/Notion
       calendar/               Google Calendar connect/disconnect status
       courses/                Canvas connect form (URL + personal access token)
       settings/               account info, integrations, semester start date, notification toggles
@@ -295,6 +304,8 @@ src/
       notes/
         route.ts               GET list / POST create (proxied straight to the user's Notion database)
         [id]/route.ts          PATCH update / DELETE (archives the Notion page)
+      assistant/
+        ask/route.ts           question + assignments + optional Calendar/Canvas/Notion context -> Claude -> plain-text answer
       planning/
         generate/route.ts     assignment + hours estimate -> free/busy from Calendar -> Claude plan (review only)
         commit/route.ts       confirmed sessions -> creates Google Calendar events + local StudySession rows
@@ -319,7 +330,8 @@ src/
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
                                overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx,
-                               anthropic-connection.tsx, notion-connection.tsx, notes-view.tsx
+                               anthropic-connection.tsx, notion-connection.tsx, notes-view.tsx,
+                               assistant-view.tsx
                                semester-start-date.tsx, office-hours-table.tsx,
                                study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx,
                                exam-countdown-widget.tsx, notification-settings.tsx
@@ -337,6 +349,7 @@ src/
     overwhelm-relief.ts         Claude call for the "I'm overwhelmed" single-focus-task plan
     canvas.ts                   per-user Canvas credentials, course list, module topics, syllabus text
     notion.ts                    per-user Notion credentials + notes CRUD (hand-rolled REST client)
+    assistant.ts                  Claude call answering a freeform question from assignments + optional context
     study-sizer.ts               Claude call for the study-hours breakdown estimate
     office-hours-extractor.ts    Claude call extracting office hours from a Canvas syllabus
     stuck-detector.ts             pure isAssignmentStuck() logic (unit-tested)
