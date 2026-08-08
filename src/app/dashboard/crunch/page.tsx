@@ -5,6 +5,7 @@ import { getOrCreateUser } from "@/lib/clerk-sync";
 import { getAuthenticatedClient, listBusyIntervals } from "@/lib/google-calendar";
 import { computeDailyLoads } from "@/lib/crunch-predictor";
 import { getCrunchAnalysis } from "@/lib/crunch-summary";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 import { CrunchHeatmap } from "@/components/dashboard/crunch-heatmap";
 
 export default async function CrunchPage() {
@@ -66,7 +67,10 @@ export default async function CrunchPage() {
   }
 
   const dailyLoads = computeDailyLoads(assignments, busy, now);
-  const dangerWindows = await getCrunchAnalysis(dailyLoads);
+  const anthropicClient = user ? await getAnthropicClientForUser(user.id) : null;
+  const dangerWindows = anthropicClient
+    ? await getCrunchAnalysis(anthropicClient, dailyLoads)
+    : null;
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">

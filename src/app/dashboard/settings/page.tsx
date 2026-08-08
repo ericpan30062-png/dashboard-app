@@ -1,8 +1,9 @@
-import { Calendar, GraduationCap, NotebookText } from "lucide-react";
+import { Calendar, GraduationCap, NotebookText, Sparkles } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getOrCreateUser } from "@/lib/clerk-sync";
 import { SemesterStartDate } from "@/components/dashboard/semester-start-date";
 import { NotificationSettings } from "@/components/dashboard/notification-settings";
+import { AnthropicConnection } from "@/components/dashboard/anthropic-connection";
 import type { IntegrationProvider } from "@/generated/prisma/enums";
 
 const providerMeta: Record<
@@ -12,6 +13,7 @@ const providerMeta: Record<
   GOOGLE_CALENDAR: { label: "Google Calendar", icon: Calendar },
   CANVAS: { label: "Canvas LMS", icon: GraduationCap },
   NOTION: { label: "Notion", icon: NotebookText },
+  ANTHROPIC: { label: "Anthropic API key", icon: Sparkles },
 };
 
 export default async function SettingsPage() {
@@ -30,6 +32,23 @@ export default async function SettingsPage() {
           <code>src/lib/clerk-sync.ts</code>) so app data can reference it via
           Prisma.
         </p>
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 className="mb-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+          Anthropic API key
+        </h2>
+        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+          Powers every Claude feature in this app — syllabus upload, study
+          plans, nudges, and more — billed to your own Anthropic account.
+        </p>
+        <AnthropicConnection
+          connected={Boolean(
+            user?.integrations.some(
+              (i) => i.provider === "ANTHROPIC" && i.connectedAt,
+            ),
+          )}
+        />
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">

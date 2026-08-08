@@ -7,6 +7,7 @@ import {
   sortByDueDateAsc,
 } from "@/lib/grade-impact";
 import { getFocusSummary } from "@/lib/priority-summary";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 import { PriorityView } from "@/components/dashboard/priority-view";
 
 export default async function PrioritiesPage() {
@@ -21,7 +22,8 @@ export default async function PrioritiesPage() {
   const byImpact = sortByImpactDesc(scored);
   const byDueDate = sortByDueDateAsc(scored);
 
-  const summary = await getFocusSummary(byImpact);
+  const anthropicClient = user ? await getAnthropicClientForUser(user.id) : null;
+  const summary = anthropicClient ? await getFocusSummary(anthropicClient, byImpact) : null;
   const canvasConnected = Boolean(
     user?.integrations.find((i) => i.provider === "CANVAS")?.connectedAt,
   );

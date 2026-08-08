@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { DayLoad } from "@/lib/crunch-predictor";
 
 const DangerWindowSchema = z.object({
@@ -43,6 +43,7 @@ function formatDaysForPrompt(days: DayLoad[]): string {
 // Returns null on failure or when there's nothing worth flagging, so the
 // page can render the heat map on its own without the AI analysis.
 export async function getCrunchAnalysis(
+  anthropic: Anthropic,
   days: DayLoad[],
 ): Promise<DangerWindow[] | null> {
   if (days.every((d) => d.rawScore === 0)) return null;

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
+import { getOrCreateUser } from "@/lib/clerk-sync";
 import { ExtractedAssignmentsSchema } from "@/lib/syllabus-schema";
 
 export const runtime = "nodejs";
@@ -24,6 +25,18 @@ Do not invent values that aren't in the text. Use null when something genuinely 
 
 export async function POST(request: Request) {
   await auth.protect();
+  const user = await getOrCreateUser();
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 401 });
+  }
+
+  const anthropic = await getAnthropicClientForUser(user.id);
+  if (!anthropic) {
+    return NextResponse.json(
+      { error: "Connect your Anthropic API key on Settings first.", needsAnthropicConnect: true },
+      { status: 400 },
+    );
+  }
 
   const formData = await request.formData();
   const file = formData.get("file");

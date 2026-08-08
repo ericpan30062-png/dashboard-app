@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { AssignmentType } from "@/generated/prisma/enums";
 
 const TopicEstimateSchema = z.object({
@@ -27,13 +27,16 @@ Given the assignment's name, type, grade weight, a list of topics it covers (if 
 
 Grade weight and assignment type should meaningfully affect the estimate — a 30%-weighted final project warrants far more hours than a 5%-weighted homework set, and exams typically need more review/practice time than papers or homework of the same weight.`;
 
-export async function getStudySizeEstimate(input: {
-  assignmentName: string;
-  assignmentType: AssignmentType;
-  weight: number | null;
-  topics: string[];
-  weeksSinceSemesterStart: number | null;
-}): Promise<StudySizeEstimate> {
+export async function getStudySizeEstimate(
+  anthropic: Anthropic,
+  input: {
+    assignmentName: string;
+    assignmentType: AssignmentType;
+    weight: number | null;
+    topics: string[];
+    weeksSinceSemesterStart: number | null;
+  },
+): Promise<StudySizeEstimate> {
   const weeksText =
     input.weeksSinceSemesterStart !== null
       ? `${input.weeksSinceSemesterStart} weeks`

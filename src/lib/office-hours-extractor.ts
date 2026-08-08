@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 
 const DayOfWeekEnum = z.enum([
   "MONDAY",
@@ -39,6 +39,7 @@ Find every professor's and TA's office hours mentioned. For each, report:
 If no office hours are mentioned at all, return an empty entries array. Do not invent entries that aren't actually in the text.`;
 
 export async function extractOfficeHours(
+  anthropic: Anthropic,
   courseName: string,
   syllabusText: string,
 ): Promise<OfficeHoursEntry[]> {

@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { findAvoidedAssignments, type AvoidedAssignment } from "@/lib/procrastination-detector";
 import { generateProcrastinationNudge } from "@/lib/procrastination-nudge";
 import { getAuthenticatedClient } from "@/lib/google-calendar";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 import { sendEmail } from "@/lib/gmail";
 
 const NUDGE_COOLDOWN_HOURS = 48;
@@ -13,6 +14,7 @@ export type ProcrastinationNudgeCheckResult = {
   skippedNoAvoidance: number;
   skippedCooldown: number;
   skippedNoGoogle: number;
+  skippedNoAnthropic: number;
   errors: { userId: string; message: string }[];
 };
 
@@ -68,6 +70,7 @@ export async function runProcrastinationNudgeCheck(
     skippedNoAvoidance: 0,
     skippedCooldown: 0,
     skippedNoGoogle: 0,
+    skippedNoAnthropic: 0,
     errors: [],
   };
 
@@ -100,7 +103,13 @@ export async function runProcrastinationNudgeCheck(
         continue;
       }
 
-      const message = await generateProcrastinationNudge({
+      const anthropic = await getAnthropicClientForUser(user.id);
+      if (!anthropic) {
+        result.skippedNoAnthropic += 1;
+        continue;
+      }
+
+      const message = await generateProcrastinationNudge(anthropic, {
         assignmentName: target.assignment.name,
         assignmentType: target.assignment.type,
         course: target.assignment.course,

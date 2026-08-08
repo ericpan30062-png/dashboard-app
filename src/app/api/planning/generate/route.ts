@@ -10,6 +10,7 @@ import {
   computeFreeBlocks,
 } from "@/lib/google-calendar";
 import { generateStudyPlan, assignStartTimes } from "@/lib/study-plan";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -59,6 +60,14 @@ export async function POST(request: Request) {
     );
   }
 
+  const anthropicClient = await getAnthropicClientForUser(user.id);
+  if (!anthropicClient) {
+    return NextResponse.json(
+      { error: "Connect your Anthropic API key on Settings first.", needsAnthropicConnect: true },
+      { status: 400 },
+    );
+  }
+
   const client = await getAuthenticatedClient(user.id);
   if (!client) {
     return NextResponse.json(
@@ -98,7 +107,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const sessions = await generateStudyPlan({
+  const sessions = await generateStudyPlan(anthropicClient, {
     assignmentName: assignment.name,
     assignmentType: assignment.type,
     dueDate,

@@ -1,3 +1,4 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "@/lib/prisma";
 import { parseDueDate, daysUntil } from "@/lib/grade-impact";
 import {
@@ -8,11 +9,13 @@ import {
 } from "@/lib/google-calendar";
 import { getCanvasCredentials, listCourseModuleTopics } from "@/lib/canvas";
 import { generateExamPlan } from "@/lib/exam-plan-generator";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 import type { Assignment } from "@/generated/prisma/client";
 
 const LOOKAHEAD_DAYS = 7;
 
 async function createExamPlanForAssignment(
+  anthropic: Anthropic,
   assignment: Assignment,
   dueDate: Date,
   daysUntilExam: number,
@@ -41,7 +44,7 @@ async function createExamPlanForAssignment(
   }
   const availableTimePerDay = getAvailableTime(busy, now, dueDate);
 
-  const planDays = await generateExamPlan({
+  const planDays = await generateExamPlan(anthropic, {
     examName: assignment.name,
     course: assignment.course,
     topics,
@@ -71,6 +74,7 @@ async function createExamPlanForAssignment(
 export type ExamPlanCheckResult = {
   checked: number;
   created: number;
+  skippedNoAnthropic: number;
   errors: { assignmentId: string; message: string }[];
 };
 
@@ -87,6 +91,7 @@ export async function runExamPlanCheck(now: Date = new Date()): Promise<ExamPlan
 
   let checked = 0;
   let created = 0;
+  let skippedNoAnthropic = 0;
   const errors: ExamPlanCheckResult["errors"] = [];
 
   for (const assignment of examAssignments) {
@@ -99,8 +104,14 @@ export async function runExamPlanCheck(now: Date = new Date()): Promise<ExamPlan
     checked += 1;
     if (assignment.examPlan) continue;
 
+    const anthropic = await getAnthropicClientForUser(assignment.userId);
+    if (!anthropic) {
+      skippedNoAnthropic += 1;
+      continue;
+    }
+
     try {
-      await createExamPlanForAssignment(assignment, dueDate, days, now);
+      await createExamPlanForAssignment(anthropic, assignment, dueDate, days, now);
       created += 1;
     } catch (error) {
       console.error(`Exam plan generation failed for assignment ${assignment.id}:`, error);
@@ -111,5 +122,5 @@ export async function runExamPlanCheck(now: Date = new Date()): Promise<ExamPlan
     }
   }
 
-  return { checked, created, errors };
+  return { checked, created, skippedNoAnthropic, errors };
 }

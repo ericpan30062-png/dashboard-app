@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 import { dateKey, type FreeBlock } from "@/lib/google-calendar";
 import type { AssignmentType } from "@/generated/prisma/enums";
 
@@ -52,13 +52,16 @@ function formatFreeBlocksByDate(freeBlocks: FreeBlock[]): string {
     .join("\n");
 }
 
-export async function generateStudyPlan(params: {
-  assignmentName: string;
-  assignmentType: AssignmentType;
-  dueDate: Date;
-  hoursEstimate: number;
-  freeBlocks: FreeBlock[];
-}): Promise<PlanSession[]> {
+export async function generateStudyPlan(
+  anthropic: Anthropic,
+  params: {
+    assignmentName: string;
+    assignmentType: AssignmentType;
+    dueDate: Date;
+    hoursEstimate: number;
+    freeBlocks: FreeBlock[];
+  },
+): Promise<PlanSession[]> {
   if (params.freeBlocks.length === 0) return [];
 
   const message = await anthropic.messages.parse({

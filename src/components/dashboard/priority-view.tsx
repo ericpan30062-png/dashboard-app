@@ -103,8 +103,8 @@ export function PriorityView({
       ) : (
         byImpact.length > 0 && (
           <p className="text-xs text-zinc-500 dark:text-zinc-500">
-            AI summary unavailable — check that ANTHROPIC_API_KEY is
-            configured.
+            AI summary unavailable — connect your Anthropic API key on the
+            Settings page.
           </p>
         )
       )}

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 
 const ExamPlanDaySchema = z.object({
   date: z.string(), // "YYYY-MM-DD"
@@ -27,13 +27,16 @@ Rules:
 - If no topic list was given, use general but still specific study activities based on the exam's name (e.g. "Redo practice problems from the hardest homework sets", not just "study").
 - Skip a date entirely if there's truly nothing productive to assign (e.g. zero available hours that day) rather than forcing an empty or padded entry.`;
 
-export async function generateExamPlan(input: {
-  examName: string;
-  course: string | null;
-  topics: string[];
-  daysUntilExam: number;
-  availableTimePerDay: { date: string; hours: number }[];
-}): Promise<ExamPlanDay[]> {
+export async function generateExamPlan(
+  anthropic: Anthropic,
+  input: {
+    examName: string;
+    course: string | null;
+    topics: string[];
+    daysUntilExam: number;
+    availableTimePerDay: { date: string; hours: number }[];
+  },
+): Promise<ExamPlanDay[]> {
   const topicsText =
     input.topics.length > 0
       ? input.topics.map((t) => `- ${t}`).join("\n")

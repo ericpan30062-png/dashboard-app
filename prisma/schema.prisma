@@ -43,6 +43,7 @@ enum IntegrationProvider {
   GOOGLE_CALENDAR
   CANVAS
   NOTION
+  ANTHROPIC
 }
 
 // Tracks per-user connection status/credentials for the third-party

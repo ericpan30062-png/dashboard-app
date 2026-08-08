@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getOrCreateUser } from "@/lib/clerk-sync";
 import { getCanvasCredentials, listCourseModuleTopics } from "@/lib/canvas";
 import { getStudySizeEstimate } from "@/lib/study-sizer";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -66,8 +67,16 @@ export async function POST(request: Request) {
     ? weeksSince(user.semesterStartDate, new Date())
     : null;
 
+  const anthropicClient = await getAnthropicClientForUser(user.id);
+  if (!anthropicClient) {
+    return NextResponse.json(
+      { error: "Connect your Anthropic API key on Settings first.", needsAnthropicConnect: true },
+      { status: 400 },
+    );
+  }
+
   try {
-    const estimate = await getStudySizeEstimate({
+    const estimate = await getStudySizeEstimate(anthropicClient, {
       assignmentName: assignment.name,
       assignmentType: assignment.type,
       weight: assignment.weight,

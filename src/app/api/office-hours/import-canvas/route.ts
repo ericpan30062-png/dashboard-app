@@ -8,6 +8,7 @@ import {
   getCourseSyllabus,
 } from "@/lib/canvas";
 import { extractOfficeHours } from "@/lib/office-hours-extractor";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -23,6 +24,14 @@ export async function POST() {
   if (!creds) {
     return NextResponse.json(
       { error: "Canvas isn't connected.", needsCanvasConnect: true },
+      { status: 400 },
+    );
+  }
+
+  const anthropicClient = await getAnthropicClientForUser(user.id);
+  if (!anthropicClient) {
+    return NextResponse.json(
+      { error: "Connect your Anthropic API key on Settings first.", needsAnthropicConnect: true },
       { status: 400 },
     );
   }
@@ -46,7 +55,7 @@ export async function POST() {
       const { name, syllabusText } = await getCourseSyllabus(creds, course.id);
       if (!syllabusText) continue;
 
-      const entries = await extractOfficeHours(name, syllabusText);
+      const entries = await extractOfficeHours(anthropicClient, name, syllabusText);
       for (const entry of entries) {
         // Avoid piling up duplicates on repeated imports: treat course +
         // instructor + day + start time as the natural key.

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { AssignmentType } from "@/generated/prisma/enums";
 import type { OfficeHours } from "@/generated/prisma/client";
 
@@ -21,14 +21,17 @@ Rules:
 - Tone: professional but warm, not stiff. Sign off with just "[Your name]" as a placeholder.
 - subject: short and clear (e.g. "Question about [Assignment] — office hours?").`;
 
-export async function draftNudgeEmail(input: {
-  assignmentName: string;
-  assignmentType: AssignmentType;
-  course: string;
-  instructorName: string;
-  blockedNote: string | null;
-  slot: Pick<OfficeHours, "dayOfWeek" | "startTime" | "endTime" | "location">;
-}): Promise<NudgeEmail> {
+export async function draftNudgeEmail(
+  anthropic: Anthropic,
+  input: {
+    assignmentName: string;
+    assignmentType: AssignmentType;
+    course: string;
+    instructorName: string;
+    blockedNote: string | null;
+    slot: Pick<OfficeHours, "dayOfWeek" | "startTime" | "endTime" | "location">;
+  },
+): Promise<NudgeEmail> {
   const message = await anthropic.messages.parse({
     model: "claude-opus-4-8",
     max_tokens: 1024,

@@ -1,4 +1,4 @@
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { ScoredAssignment } from "@/lib/grade-impact";
 
 const SYSTEM_PROMPT = `You are a study-planning assistant. You'll be given a student's upcoming assignments, already ranked by "impact score" (grade weight x an urgency multiplier based on how soon it's due).
@@ -19,10 +19,11 @@ function formatAssignmentLine(item: ScoredAssignment): string {
   return `- ${assignment.name} (${assignment.type.toLowerCase()}): ${weightText}, ${dueText}, impact score ${impactScore.toFixed(1)}`;
 }
 
-// Returns null (rather than throwing) on any failure — e.g. ANTHROPIC_API_KEY
-// missing or invalid — so a page render never breaks just because this
+// Returns null (rather than throwing) on any failure — e.g. an invalid
+// Anthropic key — so a page render never breaks just because this
 // nice-to-have summary couldn't be generated.
 export async function getFocusSummary(
+  anthropic: Anthropic,
   items: ScoredAssignment[],
 ): Promise<string | null> {
   if (items.length === 0) return null;

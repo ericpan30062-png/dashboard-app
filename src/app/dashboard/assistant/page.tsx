@@ -8,8 +8,8 @@ export default async function AssistantPage() {
     <PlaceholderPage
       icon={Sparkles}
       title="AI Assistant"
-      description="Wire up the Anthropic API here to power a Claude-based assistant that can answer questions using the user's calendar, courses, and notes."
-      envVars={["ANTHROPIC_API_KEY"]}
+      description="Wire up a Claude-based assistant here that can answer questions using the user's calendar, courses, and notes — reuse getAnthropicClientForUser() from src/lib/anthropic.ts for the per-user key already connected on Settings, rather than a new env var."
+      envVars={[]}
     />
   );
 }

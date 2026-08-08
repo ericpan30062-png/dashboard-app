@@ -7,6 +7,7 @@ import { isAssignmentStuck } from "@/lib/stuck-detector";
 import { getAuthenticatedClient, listBusyIntervals } from "@/lib/google-calendar";
 import { findNextNonConflictingSlot } from "@/lib/office-hours-matcher";
 import { draftNudgeEmail } from "@/lib/nudge-email";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -89,8 +90,16 @@ export async function POST(request: Request) {
     );
   }
 
+  const anthropicClient = await getAnthropicClientForUser(user.id);
+  if (!anthropicClient) {
+    return NextResponse.json(
+      { error: "Connect your Anthropic API key on Settings first.", needsAnthropicConnect: true },
+      { status: 400 },
+    );
+  }
+
   try {
-    const draft = await draftNudgeEmail({
+    const draft = await draftNudgeEmail(anthropicClient, {
       assignmentName: assignment.name,
       assignmentType: assignment.type,
       course: assignment.course,

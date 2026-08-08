@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
-import { anthropic } from "@/lib/anthropic";
+import type Anthropic from "@anthropic-ai/sdk";
 import type { ScoredAssignment } from "@/lib/grade-impact";
 import type { FreeBlock } from "@/lib/google-calendar";
 
@@ -58,11 +58,14 @@ function formatExamCountdowns(countdowns: ExamCountdown[]): string {
     .join("\n");
 }
 
-export async function getOverwhelmRelief(input: {
-  assignments: ScoredAssignment[];
-  todayFreeBlocks: FreeBlock[] | null;
-  examCountdowns: ExamCountdown[];
-}): Promise<ReliefPlan> {
+export async function getOverwhelmRelief(
+  anthropic: Anthropic,
+  input: {
+    assignments: ScoredAssignment[];
+    todayFreeBlocks: FreeBlock[] | null;
+    examCountdowns: ExamCountdown[];
+  },
+): Promise<ReliefPlan> {
   const message = await anthropic.messages.parse({
     model: "claude-opus-4-8",
     max_tokens: 1024,

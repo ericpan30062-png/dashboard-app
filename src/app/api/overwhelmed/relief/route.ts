@@ -11,6 +11,7 @@ import {
   type FreeBlock,
 } from "@/lib/google-calendar";
 import { getOverwhelmRelief, type ExamCountdown } from "@/lib/overwhelm-relief";
+import { getAnthropicClientForUser } from "@/lib/anthropic";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -28,6 +29,14 @@ export async function POST() {
   // treats "upcoming" (not yet past due) as the incomplete set, same as the
   // priorities and crunch-predictor pages.
   const { scored } = scoreUpcomingAssignments(assignments, now);
+
+  const anthropicClient = await getAnthropicClientForUser(user.id);
+  if (!anthropicClient) {
+    return NextResponse.json(
+      { error: "Connect your Anthropic API key on Settings first.", needsAnthropicConnect: true },
+      { status: 400 },
+    );
+  }
 
   const client = await getAuthenticatedClient(user.id);
 
@@ -64,7 +73,11 @@ export async function POST() {
   }
 
   try {
-    const relief = await getOverwhelmRelief({ assignments: scored, todayFreeBlocks, examCountdowns });
+    const relief = await getOverwhelmRelief(anthropicClient, {
+      assignments: scored,
+      todayFreeBlocks,
+      examCountdowns,
+    });
     return NextResponse.json(relief);
   } catch (error) {
     console.error("getOverwhelmRelief failed:", error);

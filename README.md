@@ -158,9 +158,14 @@ study planning, and workload tools, and a placeholder for Notion.
    - Canvas needs no env vars — each user connects their own Canvas URL +
      personal access token from the Courses page in the dashboard, once
      signed in (see the feature list above).
-   - `ANTHROPIC_API_KEY` — required for the syllabus upload and backward
-     planning features; get one at
-     [console.anthropic.com](https://console.anthropic.com).
+   - Anthropic needs no env var — each user connects their own API key on
+     the Settings page (see
+     `src/components/dashboard/anthropic-connection.tsx` and
+     `src/lib/anthropic.ts`), the same per-user pattern as Canvas below, so
+     nobody spends the app owner's credits. Get a key at
+     [console.anthropic.com](https://console.anthropic.com). The
+     PDF-extraction microservice (step 5) never talks to Anthropic itself —
+     it only extracts raw text, which the Next.js app then sends to Claude.
    - `PDF_EXTRACTOR_URL` — where the syllabus upload feature's PDF-extraction
      microservice is running (defaults to `http://localhost:8000`); see step 5.
    - `GOOGLE_CALENDAR_CLIENT_ID` / `GOOGLE_CALENDAR_CLIENT_SECRET` /
@@ -225,7 +230,8 @@ study planning, and workload tools, and a placeholder for Notion.
 
    See `services/pdf-extractor/README.md` for details. `/dashboard/syllabus`
    calls this over HTTP at `PDF_EXTRACTOR_URL`, so it needs to be running
-   (and `ANTHROPIC_API_KEY` set) for uploads to work.
+   (and your Anthropic API key connected on the Settings page) for uploads
+   to work.
 
 ## Project structure
 
@@ -262,6 +268,9 @@ src/
           connect/route.ts    verifies URL+token, stores on Integration
           disconnect/route.ts deletes the stored Integration row
           courses/route.ts    lists the user's Canvas courses (for the sizer's course picker)
+        anthropic/
+          connect/route.ts    verifies the API key (models.list), stores on Integration
+          disconnect/route.ts deletes the stored Integration row
       planning/
         generate/route.ts     assignment + hours estimate -> free/busy from Calendar -> Claude plan (review only)
         commit/route.ts       confirmed sessions -> creates Google Calendar events + local StudySession rows
@@ -285,14 +294,15 @@ src/
   components/dashboard/       Sidebar, Topbar, MobileNav, nav-items config
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
-                               overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx
+                               overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx,
+                               anthropic-connection.tsx
                                semester-start-date.tsx, office-hours-table.tsx,
                                study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx,
                                exam-countdown-widget.tsx, notification-settings.tsx
   lib/
     prisma.ts                 Prisma client singleton (driver adapter)
     clerk-sync.ts             upserts the Clerk user into the local User table
-    anthropic.ts               Anthropic SDK client singleton
+    anthropic.ts               per-user Anthropic client (getAnthropicClientForUser) + key verification
     syllabus-schema.ts         shared Zod schema (Claude structured output + API validation)
     grade-impact.ts            due-date parsing + impact-score math (pure, unit-tested)
     priority-summary.ts        Claude call for the priorities "focus this week" summary
