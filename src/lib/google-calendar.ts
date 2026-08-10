@@ -21,23 +21,26 @@ const WORKDAY_START_HOUR = 9;
 const WORKDAY_END_HOUR = 21;
 const MIN_FREE_BLOCK_MINUTES = 20;
 
-export function createOAuth2Client(): OAuth2Client {
-  const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-  const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_CALENDAR_REDIRECT_URI;
+// The Google OAuth client is app-wide config (like Clerk's keys), not a
+// per-user credential — stored on the AppConfig singleton row instead of
+// env vars so it's editable from Settings without a server restart.
+export async function createOAuth2Client(): Promise<OAuth2Client> {
+  const config = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
+  const clientId = config?.googleCalendarClientId;
+  const clientSecret = config?.googleCalendarClientSecret;
+  const redirectUri = config?.googleCalendarRedirectUri;
 
   if (!clientId || !clientSecret || !redirectUri) {
     throw new Error(
-      "Google Calendar isn't configured — set GOOGLE_CALENDAR_CLIENT_ID, " +
-        "GOOGLE_CALENDAR_CLIENT_SECRET, and GOOGLE_CALENDAR_REDIRECT_URI.",
+      "Google Calendar isn't configured — set it up on the Settings page.",
     );
   }
 
   return new OAuth2Client({ clientId, clientSecret, redirectUri });
 }
 
-export function getGoogleAuthUrl(state: string): string {
-  const client = createOAuth2Client();
+export async function getGoogleAuthUrl(state: string): Promise<string> {
+  const client = await createOAuth2Client();
   return client.generateAuthUrl({
     access_type: "offline",
     // Forces Google to always return a refresh_token, not just on first
@@ -50,7 +53,7 @@ export function getGoogleAuthUrl(state: string): string {
 }
 
 export async function exchangeCodeForTokens(code: string) {
-  const client = createOAuth2Client();
+  const client = await createOAuth2Client();
   const { tokens } = await client.getToken(code);
   return tokens;
 }
@@ -66,7 +69,7 @@ export async function getAuthenticatedClient(
   });
   if (!integration?.refreshToken) return null;
 
-  const client = createOAuth2Client();
+  const client = await createOAuth2Client();
   client.setCredentials({
     refresh_token: integration.refreshToken,
     access_token: integration.accessToken ?? undefined,

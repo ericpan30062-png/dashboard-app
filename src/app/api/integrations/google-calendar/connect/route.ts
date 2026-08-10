@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   let authUrl: string;
   try {
-    authUrl = getGoogleAuthUrl(state);
+    authUrl = await getGoogleAuthUrl(state);
   } catch (error) {
     console.error("Google Calendar connect failed:", error);
     return NextResponse.redirect(

@@ -1,9 +1,11 @@
 import { Calendar, GraduationCap, NotebookText, Sparkles } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
 import { getOrCreateUser } from "@/lib/clerk-sync";
+import { prisma } from "@/lib/prisma";
 import { SemesterStartDate } from "@/components/dashboard/semester-start-date";
 import { NotificationSettings } from "@/components/dashboard/notification-settings";
 import { AnthropicConnection } from "@/components/dashboard/anthropic-connection";
+import { GoogleAppConfig } from "@/components/dashboard/google-app-config";
 import type { IntegrationProvider } from "@/generated/prisma/enums";
 
 const providerMeta: Record<
@@ -19,6 +21,7 @@ const providerMeta: Record<
 export default async function SettingsPage() {
   await auth.protect();
   const user = await getOrCreateUser();
+  const appConfig = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -48,6 +51,28 @@ export default async function SettingsPage() {
               (i) => i.provider === "ANTHROPIC" && i.connectedAt,
             ),
           )}
+        />
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
+        <h2 className="mb-1 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+          Google OAuth client
+        </h2>
+        <p className="mb-4 text-sm text-zinc-600 dark:text-zinc-400">
+          Unlike everything else on this page, this is shared app-wide, not
+          per-user — it&apos;s this app instance&apos;s one-time registration
+          with Google (Calendar + Gmail), the same way Clerk&apos;s keys
+          work. Every user still connects and consents individually on the
+          Calendar page.
+        </p>
+        <GoogleAppConfig
+          configured={Boolean(
+            appConfig?.googleCalendarClientId &&
+              appConfig?.googleCalendarClientSecret &&
+              appConfig?.googleCalendarRedirectUri,
+          )}
+          initialClientId={appConfig?.googleCalendarClientId ?? null}
+          initialRedirectUri={appConfig?.googleCalendarRedirectUri ?? null}
         />
       </div>
 

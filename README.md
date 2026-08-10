@@ -194,11 +194,13 @@ study planning, workload tools, Notion-backed notes, and an AI assistant.
      it only extracts raw text, which the Next.js app then sends to Claude.
    - `PDF_EXTRACTOR_URL` — where the syllabus upload feature's PDF-extraction
      microservice is running (defaults to `http://localhost:8000`); see step 5.
-   - `GOOGLE_CALENDAR_CLIENT_ID` / `GOOGLE_CALENDAR_CLIENT_SECRET` /
-     `GOOGLE_CALENDAR_REDIRECT_URI` — required for the Calendar page,
-     backward planning, and (via the same connection's `gmail.send` scope —
-     see `src/lib/google-calendar.ts`) the office hours nudger's "Send"
-     button. In the
+   - Google Calendar needs no env var — it's an app-wide OAuth client (like
+     Clerk's keys, not a per-user credential) configured once from the
+     "Google OAuth client" card on the Settings page, stored on the
+     `AppConfig` table so it takes effect without a server restart. Required
+     for the Calendar page, backward planning, and (via the same
+     connection's `gmail.send` scope — see `src/lib/google-calendar.ts`) the
+     office hours nudger's "Send" button. In the
      [Google Cloud Console](https://console.cloud.google.com/apis/credentials):
      1. Create a project (or use an existing one) and enable the
         **Google Calendar API** and the **Gmail API**.
@@ -206,9 +208,9 @@ study planning, workload tools, Notion-backed notes, and an AI assistant.
         add your Google account as a test user while the app is unpublished).
      3. Create an **OAuth client ID** of type "Web application".
      4. Add `http://localhost:3000/api/integrations/google-calendar/callback`
-        as an authorized redirect URI (must exactly match
-        `GOOGLE_CALENDAR_REDIRECT_URI`).
-     5. Copy the client ID and secret into `.env`.
+        as an authorized redirect URI.
+     5. Paste the Client ID, Client secret, and that same redirect URI into
+        the Settings page's "Google OAuth client" card.
    - `CRON_SECRET` — shared by both daily jobs: pre-exam countdown mode
      (`GET /api/cron/exam-plans`) and the procrastination detector
      (`GET /api/cron/procrastination-nudge`). Any random string works for
@@ -326,11 +328,13 @@ src/
       settings/
         semester-start-date/route.ts  persists User.semesterStartDate
         notifications/route.ts        persists User.procrastinationNudgesEnabled
+        google-config/route.ts        persists the app-wide AppConfig singleton (Google OAuth client)
   components/dashboard/       Sidebar, Topbar, MobileNav, nav-items config
                                syllabus-uploader.tsx, saved-assignments.tsx, priority-view.tsx
                                google-calendar-connection.tsx, study-plan-modal.tsx, crunch-heatmap.tsx
                                overwhelmed-button.tsx, canvas-connection.tsx, study-sizer-modal.tsx,
                                anthropic-connection.tsx, notion-connection.tsx, notes-view.tsx,
+                               google-app-config.tsx,
                                assistant-view.tsx
                                semester-start-date.tsx, office-hours-table.tsx,
                                study-session-checkins.tsx, stuck-assignments.tsx, nudge-email-modal.tsx,
@@ -342,7 +346,7 @@ src/
     syllabus-schema.ts         shared Zod schema (Claude structured output + API validation)
     grade-impact.ts            due-date parsing + impact-score math (pure, unit-tested)
     priority-summary.ts        Claude call for the priorities "focus this week" summary
-    google-calendar.ts          OAuth2Client, Calendar REST calls, free-block math (pure)
+    google-calendar.ts          OAuth2Client (built from the AppConfig singleton, not env vars), Calendar REST calls, free-block math (pure)
     study-plan.ts               Claude call for the study plan + deterministic time-slot assignment
     crunch-predictor.ts         30-day load-score math + heat map color scale (pure, unit-tested)
     crunch-summary.ts           Claude call for the danger-window analysis
@@ -363,7 +367,7 @@ src/
     procrastination-nudge-job.ts   per-user scan, cooldown filtering, email send + logging
   proxy.ts                    Next.js 16's Middleware equivalent (session refresh only)
 prisma/
-  schema.prisma               User, Integration, Assignment, OfficeHours, StudySession, ExamPlan, and ProcrastinationNudge models
+  schema.prisma               User, AppConfig, Integration, Assignment, OfficeHours, StudySession, ExamPlan, and ProcrastinationNudge models
 services/
   pdf-extractor/               FastAPI + pdfplumber microservice (see its own README)
 scripts/

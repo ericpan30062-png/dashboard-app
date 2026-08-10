@@ -39,6 +39,19 @@ model User {
   procrastinationNudges ProcrastinationNudge[]
 }
 
+// A single app-wide row (not per-user) for the Google OAuth client this
+// app instance registered with Google — analogous to Clerk's keys, not a
+// personal credential like the per-user rows on Integration. Lives in
+// Postgres instead of env vars so it's editable from Settings without a
+// server restart. See src/lib/google-calendar.ts (createOAuth2Client).
+model AppConfig {
+  id                         String   @id @default("singleton")
+  googleCalendarClientId     String?
+  googleCalendarClientSecret String?
+  googleCalendarRedirectUri  String?
+  updatedAt                  DateTime @updatedAt
+}
+
 enum IntegrationProvider {
   GOOGLE_CALENDAR
   CANVAS

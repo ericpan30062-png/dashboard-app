@@ -17,7 +17,7 @@ const STATUS_MESSAGES: Record<string, { tone: "success" | "error"; text: string 
   },
   not_configured: {
     tone: "error",
-    text: "Google Calendar isn't configured on the server yet — set GOOGLE_CALENDAR_CLIENT_ID, GOOGLE_CALENDAR_CLIENT_SECRET, and GOOGLE_CALENDAR_REDIRECT_URI.",
+    text: "Google Calendar isn't configured yet — set up the OAuth client on the Settings page.",
   },
   error: {
     tone: "error",
