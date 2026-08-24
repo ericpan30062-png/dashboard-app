@@ -41,6 +41,15 @@ export async function verifyCanvasCredentials(
   }
 }
 
+// Re-check for an already-connected account, for the Settings "Check now"
+// button — same underlying request as connect-time verification, just
+// looked up by userId instead of freshly-typed credentials.
+export async function verifyCanvasConnection(userId: string): Promise<boolean> {
+  const creds = await getCanvasCredentials(userId);
+  if (!creds) return false;
+  return verifyCanvasCredentials(creds.baseUrl, creds.token);
+}
+
 export type CanvasCourse = { id: string; name: string };
 
 export async function listCanvasCourses(

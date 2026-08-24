@@ -45,11 +45,15 @@ export async function POST(request: Request) {
       accessToken: token,
       metadata: { databaseId, titleProperty: prepared.titleProperty },
       connectedAt: new Date(),
+      lastVerifiedAt: new Date(),
+      lastVerifiedOk: true,
     },
     update: {
       accessToken: token,
       metadata: { databaseId, titleProperty: prepared.titleProperty },
       connectedAt: new Date(),
+      lastVerifiedAt: new Date(),
+      lastVerifiedOk: true,
     },
   });
 

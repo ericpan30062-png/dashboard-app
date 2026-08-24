@@ -104,6 +104,38 @@ export async function getAuthenticatedClient(
   return client;
 }
 
+// Re-check for the Settings "Check now" button. Hits the events.list
+// endpoint (maxResults=1) rather than calendars.get for calendar metadata —
+// the latter needs a broader scope (calendar/calendar.readonly) than what
+// this app actually requests (calendar.events), so it 403s even when the
+// connection genuinely works. Unlike getAuthenticatedClient, this never
+// throws: getAccessToken() can throw on a truly revoked refresh token (as
+// opposed to the "looked valid, Google rejected it anyway" case fetchEvents
+// already handles via GoogleCalendarAuthError), so everything here is
+// wrapped to collapse to a plain false.
+export async function verifyGoogleCalendarConnection(userId: string): Promise<boolean> {
+  try {
+    const client = await getAuthenticatedClient(userId);
+    if (!client) return false;
+
+    const { token } = await client.getAccessToken();
+    if (!token) return false;
+
+    const now = new Date();
+    const url = new URL(`${CALENDAR_API_BASE}/calendars/primary/events`);
+    url.searchParams.set("timeMin", now.toISOString());
+    url.searchParams.set("timeMax", new Date(now.getTime() + 60_000).toISOString());
+    url.searchParams.set("maxResults", "1");
+
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export type CalendarBusyInterval = { start: Date; end: Date };
 export type CalendarEvent = { start: Date; end: Date; summary: string; transparent: boolean };
 

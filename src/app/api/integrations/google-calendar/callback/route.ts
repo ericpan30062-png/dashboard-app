@@ -61,11 +61,15 @@ export async function GET(request: Request) {
         accessToken: tokens.access_token ?? null,
         refreshToken,
         connectedAt: new Date(),
+        lastVerifiedAt: new Date(),
+        lastVerifiedOk: true,
       },
       update: {
         accessToken: tokens.access_token ?? undefined,
         refreshToken,
         connectedAt: new Date(),
+        lastVerifiedAt: new Date(),
+        lastVerifiedOk: true,
       },
     });
 

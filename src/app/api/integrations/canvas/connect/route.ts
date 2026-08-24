@@ -42,11 +42,15 @@ export async function POST(request: Request) {
       accessToken: token,
       metadata: { baseUrl },
       connectedAt: new Date(),
+      lastVerifiedAt: new Date(),
+      lastVerifiedOk: true,
     },
     update: {
       accessToken: token,
       metadata: { baseUrl },
       connectedAt: new Date(),
+      lastVerifiedAt: new Date(),
+      lastVerifiedOk: true,
     },
   });
 

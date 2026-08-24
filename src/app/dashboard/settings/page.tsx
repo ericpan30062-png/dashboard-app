@@ -6,17 +6,34 @@ import { SemesterStartDate } from "@/components/dashboard/semester-start-date";
 import { NotificationSettings } from "@/components/dashboard/notification-settings";
 import { AnthropicConnection } from "@/components/dashboard/anthropic-connection";
 import { GoogleAppConfig } from "@/components/dashboard/google-app-config";
+import { CheckConnectionsButton } from "@/components/dashboard/check-connections-button";
 import type { IntegrationProvider } from "@/generated/prisma/enums";
 
 const providerMeta: Record<
   IntegrationProvider,
-  { label: string; icon: typeof Calendar }
+  { label: string; icon: typeof Calendar; checkable: boolean }
 > = {
-  GOOGLE_CALENDAR: { label: "Google Calendar", icon: Calendar },
-  CANVAS: { label: "Canvas LMS", icon: GraduationCap },
-  NOTION: { label: "Notion", icon: NotebookText },
-  ANTHROPIC: { label: "Anthropic API key", icon: Sparkles },
+  GOOGLE_CALENDAR: { label: "Google Calendar", icon: Calendar, checkable: true },
+  CANVAS: { label: "Canvas LMS", icon: GraduationCap, checkable: true },
+  NOTION: { label: "Notion", icon: NotebookText, checkable: true },
+  ANTHROPIC: { label: "Anthropic API key", icon: Sparkles, checkable: false },
 };
+
+// Google refresh tokens, Canvas personal access tokens, and Notion
+// integration tokens don't expose a usable "expires on X" via their APIs
+// (see the Integration.lastVerifiedAt comment in prisma/schema.prisma), so
+// this shows how long ago the connection last proved it still works
+// instead of a date it doesn't have.
+function formatRelativeTime(date: Date): string {
+  const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
 
 export default async function SettingsPage() {
   await auth.protect();
@@ -104,17 +121,21 @@ export default async function SettingsPage() {
       </div>
 
       <div className="rounded-xl border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-4 text-lg font-semibold text-zinc-950 dark:text-zinc-50">
-          Connected integrations
-        </h2>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-zinc-950 dark:text-zinc-50">
+            Connected integrations
+          </h2>
+          <CheckConnectionsButton />
+        </div>
         <ul className="flex flex-col divide-y divide-zinc-100 dark:divide-zinc-900">
           {(Object.keys(providerMeta) as IntegrationProvider[]).map(
             (provider) => {
               const meta = providerMeta[provider];
               const Icon = meta.icon;
-              const connected = user?.integrations.some(
+              const integration = user?.integrations.find(
                 (i) => i.provider === provider && i.connectedAt,
               );
+              const connected = Boolean(integration);
 
               return (
                 <li
@@ -126,9 +147,22 @@ export default async function SettingsPage() {
                       className="h-4 w-4 text-zinc-500"
                       strokeWidth={1.75}
                     />
-                    <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                      {meta.label}
-                    </span>
+                    <div>
+                      <span className="text-sm font-medium text-zinc-800 dark:text-zinc-200">
+                        {meta.label}
+                      </span>
+                      {connected && meta.checkable && integration?.lastVerifiedAt && (
+                        <p className="text-xs text-zinc-500">
+                          {integration.lastVerifiedOk === false ? (
+                            <span className="text-red-600 dark:text-red-400">
+                              Failed check {formatRelativeTime(integration.lastVerifiedAt)}
+                            </span>
+                          ) : (
+                            <>Verified working {formatRelativeTime(integration.lastVerifiedAt)}</>
+                          )}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <span
                     className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${

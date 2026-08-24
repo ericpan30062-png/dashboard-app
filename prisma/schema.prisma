@@ -71,6 +71,15 @@ model Integration {
   refreshToken String?
   metadata    Json?
   connectedAt DateTime?
+  // Set on connect (the connect flow already verifies the credential) and
+  // refreshed by POST /api/settings/check-connections, which re-tests each
+  // provider live rather than trying to read an expiration date — Notion
+  // tokens don't expire, Canvas personal access tokens don't expose their
+  // expiry via the API, and Google's refresh token has no fixed lifetime
+  // (it lasts until revoked or unused for 6 months). "Still works as of
+  // this check" is the honest thing to show instead.
+  lastVerifiedAt DateTime?
+  lastVerifiedOk Boolean?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
 

@@ -51,6 +51,22 @@ export async function getNotionCredentials(
   };
 }
 
+// Read-only re-check for an already-connected database — unlike
+// verifyAndPrepareNotionDatabase (used only at connect time), this never
+// PATCHes the database, so it's safe to call repeatedly from the Settings
+// "Check now" button.
+export async function verifyNotionConnection(userId: string): Promise<boolean> {
+  const creds = await getNotionCredentials(userId);
+  if (!creds) return false;
+
+  try {
+    const res = await notionFetch(creds.token, `/databases/${creds.databaseId}`);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 type NotionDatabase = {
   properties: Record<string, { type: string }>;
 };
