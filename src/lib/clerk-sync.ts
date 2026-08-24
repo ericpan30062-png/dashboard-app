@@ -28,3 +28,14 @@ export async function getOrCreateUser() {
     include: { integrations: true },
   });
 }
+
+// AppConfig (the Google OAuth client) is app-wide, not per-user — so unlike
+// everything else in Settings, changing it needs to be gated to someone
+// specific rather than "any signed-in user". This app has no dedicated
+// admin/role field; the simplest correct owner is whoever's account
+// existed first, so that's what's checked here instead of adding a role
+// column for an app that, by design, has exactly one owner.
+export async function isAppOwner(userId: string): Promise<boolean> {
+  const firstUser = await prisma.user.findFirst({ orderBy: { createdAt: "asc" } });
+  return firstUser?.id === userId;
+}

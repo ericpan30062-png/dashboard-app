@@ -10,10 +10,15 @@ export function GoogleAppConfig({
   configured,
   initialClientId,
   initialRedirectUri,
+  editable,
 }: {
   configured: boolean;
   initialClientId: string | null;
   initialRedirectUri: string | null;
+  // This config is shared app-wide, not per-user, so only the app owner
+  // can change it — see isAppOwner() in src/lib/clerk-sync.ts. Everyone
+  // else gets a read-only status instead of a form that would 403.
+  editable: boolean;
 }) {
   const router = useRouter();
   const [clientId, setClientId] = useState(initialClientId ?? "");
@@ -72,6 +77,14 @@ export function GoogleAppConfig({
         </div>
       </div>
 
+      {!editable && (
+        <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950">
+          Only the app owner can view or change this — it&apos;s shared by
+          every signed-in user.
+        </p>
+      )}
+
+      {editable && (
       <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium text-zinc-700 dark:text-zinc-300">Client ID</span>
@@ -118,6 +131,7 @@ export function GoogleAppConfig({
           Save
         </button>
       </div>
+      )}
     </div>
   );
 }

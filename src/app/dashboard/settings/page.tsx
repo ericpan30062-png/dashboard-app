@@ -1,6 +1,6 @@
 import { Calendar, GraduationCap, NotebookText, Sparkles } from "lucide-react";
 import { auth } from "@clerk/nextjs/server";
-import { getOrCreateUser } from "@/lib/clerk-sync";
+import { getOrCreateUser, isAppOwner } from "@/lib/clerk-sync";
 import { prisma } from "@/lib/prisma";
 import { SemesterStartDate } from "@/components/dashboard/semester-start-date";
 import { NotificationSettings } from "@/components/dashboard/notification-settings";
@@ -22,6 +22,7 @@ export default async function SettingsPage() {
   await auth.protect();
   const user = await getOrCreateUser();
   const appConfig = await prisma.appConfig.findUnique({ where: { id: "singleton" } });
+  const isOwner = user ? await isAppOwner(user.id) : false;
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -73,6 +74,7 @@ export default async function SettingsPage() {
           )}
           initialClientId={appConfig?.googleCalendarClientId ?? null}
           initialRedirectUri={appConfig?.googleCalendarRedirectUri ?? null}
+          editable={isOwner}
         />
       </div>
 
