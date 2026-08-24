@@ -17,11 +17,15 @@ const HEURISTIC_HOURS_BY_TYPE: Record<AssignmentType, number> = {
 };
 
 // Relative weights turning three different units (grade percentage points,
-// event count, hours) into one comparable score. Exact values matter less
-// than their proportions, since intensity is min-max normalized afterward.
-const WEIGHT_POINTS_PER_PERCENT = 2;
-const POINTS_PER_EVENT = 8;
-const POINTS_PER_HOUR = 6;
+// event count, hours) into one comparable score. Grade weight is the
+// dominant signal by design — a day carrying more of your grade should
+// read as "hotter" even with a light calendar; busyness and estimated
+// hours only nudge the score, they don't override it. Exact values matter
+// less than their proportions, since intensity is min-max normalized
+// afterward.
+const WEIGHT_POINTS_PER_PERCENT = 8;
+const POINTS_PER_EVENT = 2;
+const POINTS_PER_HOUR = 1;
 
 export type DueSoonAssignment = {
   id: string;
@@ -109,16 +113,46 @@ export function computeDailyLoads(
   }));
 }
 
-// Green (low) -> yellow -> red (high), getting more saturated and darker as
-// intensity rises so the busiest days read as visually "hottest".
-export function intensityToColor(intensity: number): string {
+// Five-stop scale (calm green -> yellow-green -> amber -> orange -> deep
+// red) instead of a single hue sweep, so the heatmap reads as a richer
+// gradient rather than three flat bands of color.
+export const INTENSITY_COLOR_STOPS: { pct: number; rgb: [number, number, number] }[] = [
+  { pct: 0, rgb: [110, 231, 183] }, // emerald-300
+  { pct: 25, rgb: [190, 219, 92] }, // yellow-green
+  { pct: 50, rgb: [250, 204, 21] }, // amber-400
+  { pct: 75, rgb: [251, 146, 60] }, // orange-400
+  { pct: 100, rgb: [185, 28, 28] }, // red-700
+];
+
+function intensityToRgb(intensity: number): [number, number, number] {
   const clamped = Math.max(0, Math.min(100, intensity));
-  const hue = 120 - (clamped / 100) * 120;
-  const saturation = 55 + (clamped / 100) * 25;
-  const lightness = 88 - (clamped / 100) * 43;
-  return `hsl(${hue.toFixed(0)} ${saturation.toFixed(0)}% ${lightness.toFixed(0)}%)`;
+  let lower = INTENSITY_COLOR_STOPS[0];
+  let upper = INTENSITY_COLOR_STOPS[INTENSITY_COLOR_STOPS.length - 1];
+  for (let i = 0; i < INTENSITY_COLOR_STOPS.length - 1; i++) {
+    if (clamped >= INTENSITY_COLOR_STOPS[i].pct && clamped <= INTENSITY_COLOR_STOPS[i + 1].pct) {
+      lower = INTENSITY_COLOR_STOPS[i];
+      upper = INTENSITY_COLOR_STOPS[i + 1];
+      break;
+    }
+  }
+  const span = upper.pct - lower.pct || 1;
+  const t = (clamped - lower.pct) / span;
+  return [0, 1, 2].map((i) => Math.round(lower.rgb[i] + (upper.rgb[i] - lower.rgb[i]) * t)) as [
+    number,
+    number,
+    number,
+  ];
 }
 
+export function intensityToColor(intensity: number): string {
+  const [r, g, b] = intensityToRgb(intensity);
+  return `rgb(${r} ${g} ${b})`;
+}
+
+// Relative luminance rather than a fixed intensity cutoff, since the
+// multi-stop scale no longer gets uniformly darker as intensity rises.
 export function intensityTextIsLight(intensity: number): boolean {
-  return intensity > 55;
+  const [r, g, b] = intensityToRgb(intensity).map((c) => c / 255);
+  const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return luminance < 0.6;
 }

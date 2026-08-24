@@ -6,6 +6,10 @@ import {
 } from "@/lib/crunch-predictor";
 import type { DangerWindow } from "@/lib/crunch-summary";
 
+// Sampled at a fine enough step that the CSS linear-gradient reads as
+// smooth rather than banded.
+const GRADIENT_STOPS = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
 function formatCellDate(dateStr: string) {
   const [y, m, d] = dateStr.split("-").map(Number);
   const date = new Date(y, m - 1, d);
@@ -34,14 +38,21 @@ export function CrunchHeatmap({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <div className="mb-2 flex items-center gap-2 text-xs text-zinc-500">
-          <span>Load:</span>
-          <span className="h-3 w-3 rounded" style={{ background: intensityToColor(0) }} />
-          <span>Low</span>
-          <span className="h-3 w-3 rounded" style={{ background: intensityToColor(50) }} />
-          <span>Medium</span>
-          <span className="h-3 w-3 rounded" style={{ background: intensityToColor(100) }} />
-          <span>High</span>
+        <div className="mb-2 flex flex-col gap-1">
+          <span className="text-xs text-zinc-500">Load, by due-soon grade weight</span>
+          <div
+            className="h-2 w-48 rounded-full"
+            style={{
+              background: `linear-gradient(to right, ${GRADIENT_STOPS.map(
+                (pct) => intensityToColor(pct),
+              ).join(", ")})`,
+            }}
+          />
+          <div className="flex w-48 justify-between text-[10px] text-zinc-500">
+            <span>Low</span>
+            <span>Medium</span>
+            <span>High</span>
+          </div>
         </div>
         <div className="grid grid-cols-7 gap-1.5">
           {days.map((day) => {
