@@ -12,6 +12,22 @@ const SCOPES = [
 ];
 const CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3";
 
+// Thrown when Google rejects a request with 401 despite us having what
+// looked like a valid token (e.g. the stored refresh token was revoked, or
+// the OAuth client was reconfigured in Settings after the token was
+// issued). Distinct from transient failures — callers should treat this as
+// "the connection needs to be redone", not "try again in a bit".
+export class GoogleCalendarAuthError extends Error {}
+
+// Clears a user's stored Google Calendar tokens so Settings correctly shows
+// "Not connected" and the next connect attempt starts a fresh OAuth grant.
+// Call this after catching a GoogleCalendarAuthError.
+export async function disconnectStaleIntegration(userId: string): Promise<void> {
+  await prisma.integration.deleteMany({
+    where: { userId, provider: "GOOGLE_CALENDAR" },
+  });
+}
+
 // Assumes the server and the signed-in user share a timezone — this is a
 // single-user dev scaffold with no stored user timezone preference. A
 // production app would ask the user and store it instead.
@@ -117,6 +133,11 @@ async function fetchEvents(
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new GoogleCalendarAuthError(
+        "Google Calendar rejected the stored token — reconnect required.",
+      );
+    }
     throw new Error(`Google Calendar list events failed: ${res.status}`);
   }
 
@@ -192,6 +213,11 @@ export async function createCalendarEvent(
   );
 
   if (!res.ok) {
+    if (res.status === 401) {
+      throw new GoogleCalendarAuthError(
+        "Google Calendar rejected the stored token — reconnect required.",
+      );
+    }
     const detail = await res.text().catch(() => "");
     throw new Error(`Google Calendar create event failed: ${res.status} ${detail}`);
   }

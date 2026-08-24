@@ -2,7 +2,12 @@ import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { getOrCreateUser } from "@/lib/clerk-sync";
-import { getAuthenticatedClient, listBusyIntervals } from "@/lib/google-calendar";
+import {
+  getAuthenticatedClient,
+  listBusyIntervals,
+  disconnectStaleIntegration,
+  GoogleCalendarAuthError,
+} from "@/lib/google-calendar";
 import { computeDailyLoads } from "@/lib/crunch-predictor";
 import { getCrunchAnalysis } from "@/lib/crunch-summary";
 import { getAnthropicClientForUser } from "@/lib/anthropic";
@@ -30,21 +35,24 @@ export default async function CrunchPage() {
     </div>
   );
 
+  const connectPrompt = (message: string) => (
+    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      {header}
+      <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950">
+        {message}{" "}
+        <Link
+          href="/dashboard/calendar"
+          className="font-medium text-zinc-950 underline dark:text-zinc-50"
+        >
+          Go to Calendar settings
+        </Link>
+      </p>
+    </div>
+  );
+
   if (!client) {
-    return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        {header}
-        <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950">
-          Connect Google Calendar to see your crunch forecast — it factors in
-          your actual schedule, not just assignment due dates.{" "}
-          <Link
-            href="/dashboard/calendar"
-            className="font-medium text-zinc-950 underline dark:text-zinc-50"
-          >
-            Go to Calendar settings
-          </Link>
-        </p>
-      </div>
+    return connectPrompt(
+      "Connect Google Calendar to see your crunch forecast — it factors in your actual schedule, not just assignment due dates.",
     );
   }
 
@@ -55,14 +63,15 @@ export default async function CrunchPage() {
   try {
     busy = await listBusyIntervals(client, now, horizon);
   } catch (error) {
+    if (error instanceof GoogleCalendarAuthError) {
+      if (user) await disconnectStaleIntegration(user.id);
+      return connectPrompt(
+        "Your Google Calendar connection expired — reconnect to see your crunch forecast.",
+      );
+    }
     console.error("Crunch predictor: listBusyIntervals failed:", error);
-    return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
-        {header}
-        <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-8 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950">
-          Couldn&apos;t read your Google Calendar events — try again in a bit.
-        </p>
-      </div>
+    return connectPrompt(
+      "Couldn't read your Google Calendar events — try again in a bit, or reconnect if this keeps happening.",
     );
   }
 
