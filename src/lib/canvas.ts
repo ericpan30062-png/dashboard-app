@@ -60,6 +60,71 @@ export async function listCanvasCourses(
     .map((c) => ({ id: String(c.id), name: c.name }));
 }
 
+export type CanvasAssignment = {
+  id: string;
+  courseId: string;
+  courseName: string;
+  name: string;
+  // null when Canvas has no due date set for the assignment (e.g. an
+  // ungraded discussion) — callers should treat that as "undated", not
+  // filter it out by accident.
+  dueAt: string | null;
+  htmlUrl: string | null;
+};
+
+async function listCourseAssignments(
+  creds: CanvasCredentials,
+  course: CanvasCourse,
+): Promise<CanvasAssignment[]> {
+  const res = await fetch(
+    `${normalizeBaseUrl(creds.baseUrl)}/api/v1/courses/${course.id}/assignments?per_page=100&order_by=due_at`,
+    { headers: { Authorization: `Bearer ${creds.token}` } },
+  );
+  if (!res.ok) {
+    throw new Error(`Canvas list assignments failed: ${res.status}`);
+  }
+
+  const body = (await res.json()) as Array<{
+    id: number;
+    name?: string;
+    due_at?: string | null;
+    html_url?: string | null;
+  }>;
+  return body
+    .filter((a): a is { id: number; name: string; due_at?: string | null; html_url?: string | null } =>
+      Boolean(a.name),
+    )
+    .map((a) => ({
+      id: String(a.id),
+      courseId: course.id,
+      courseName: course.name,
+      name: a.name,
+      dueAt: a.due_at ?? null,
+      htmlUrl: a.html_url ?? null,
+    }));
+}
+
+export function formatCanvasDueDate(dueAt: string | null): string {
+  if (!dueAt) return "No due date";
+  const date = new Date(dueAt);
+  const datePart = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const timePart = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${datePart} · ${timePart}`;
+}
+
+// Canvas has no single "all my assignments across courses" endpoint, so
+// this fans out one request per course (in parallel) and flattens the
+// results — fine at student-scale course counts.
+export async function listAllCanvasAssignments(
+  creds: CanvasCredentials,
+  courses: CanvasCourse[],
+): Promise<CanvasAssignment[]> {
+  const perCourse = await Promise.all(
+    courses.map((course) => listCourseAssignments(creds, course)),
+  );
+  return perCourse.flat();
+}
+
 // A "topic" here is a Canvas Module's name (e.g. "Module 3: Photosynthesis")
 // — the closest built-in Canvas concept to a syllabus topic list.
 export async function listCourseModuleTopics(

@@ -8,10 +8,19 @@ import {
   disconnectStaleIntegration,
   GoogleCalendarAuthError,
 } from "@/lib/google-calendar";
+import {
+  getCanvasCredentials,
+  listCanvasCourses,
+  listAllCanvasAssignments,
+  type CanvasAssignment,
+} from "@/lib/canvas";
 import { computeDailyLoads } from "@/lib/crunch-predictor";
 import { getCrunchAnalysis } from "@/lib/crunch-summary";
 import { getAnthropicClientForUser } from "@/lib/anthropic";
 import { CrunchHeatmap } from "@/components/dashboard/crunch-heatmap";
+import { UpcomingHomework } from "@/components/dashboard/upcoming-homework";
+
+const HORIZON_DAYS = 30;
 
 export default async function CrunchPage() {
   await auth.protect();
@@ -22,6 +31,30 @@ export default async function CrunchPage() {
     : [];
 
   const client = user ? await getAuthenticatedClient(user.id) : null;
+
+  const now = new Date();
+  const horizon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + HORIZON_DAYS);
+
+  // Canvas homework is independent of the Google Calendar connection, so
+  // it's fetched — and shown — regardless of which branch below returns.
+  let homework: CanvasAssignment[] | null = null;
+  let homeworkError: string | null = null;
+  if (user) {
+    const canvasCreds = await getCanvasCredentials(user.id);
+    if (canvasCreds) {
+      try {
+        const courses = await listCanvasCourses(canvasCreds);
+        const allAssignments = await listAllCanvasAssignments(canvasCreds, courses);
+        homework = allAssignments
+          .filter((a) => a.dueAt && new Date(a.dueAt) >= now && new Date(a.dueAt) <= horizon)
+          .sort((a, b) => new Date(a.dueAt!).getTime() - new Date(b.dueAt!).getTime());
+      } catch (error) {
+        console.error("Crunch predictor: Canvas homework fetch failed:", error);
+        homeworkError = "Couldn't load homework from Canvas — try again in a bit.";
+      }
+    }
+  }
+  const homeworkSection = <UpcomingHomework homework={homework} error={homeworkError} />;
 
   const header = (
     <div>
@@ -47,6 +80,7 @@ export default async function CrunchPage() {
           Go to Calendar settings
         </Link>
       </p>
+      {homeworkSection}
     </div>
   );
 
@@ -55,9 +89,6 @@ export default async function CrunchPage() {
       "Connect Google Calendar to see your crunch forecast — it factors in your actual schedule, not just assignment due dates.",
     );
   }
-
-  const now = new Date();
-  const horizon = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 30);
 
   let busy;
   try {
@@ -85,6 +116,7 @@ export default async function CrunchPage() {
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
       {header}
       <CrunchHeatmap days={dailyLoads} dangerWindows={dangerWindows} />
+      {homeworkSection}
     </div>
   );
 }
